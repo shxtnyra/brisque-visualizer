@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' media: data:;" />
+  <title>Brisque Visualizer</title>
+  <link rel="stylesheet" href="./assets/base.css" />
+  <link rel="stylesheet" href="./assets/style.css" />
+</head>
+
+<body>
+  <div class="app">
+    <!-- Верхняя панель управления -->
+    <div class="toolbar">
+      <button id="open-btn">Открыть изображение</button>
+      <span id="zoom-info">Масштаб: 100%</span>
+      <span class="hint">Колесо мыши — масштаб | ЛКМ + Тянуть — выделение области</span>
+    </div>
+
+    <!-- Главный экран -->
+    <div class="main-layout">
+      <!-- Слева: Зона просмотра изображения -->
+      <div class="workspace" id="workspace">
+        <div class="image-wrapper" id="image-wrapper">
+          <img id="target-image" draggable="false" />
+          <!-- Рамка выделения -->
+          <!-- Рамка выделения с угловыми маркерами для ресайза -->
+          <div id="selection-box">
+            <div class="resize-handle handle-nw" data-handle="nw"></div>
+            <div class="resize-handle handle-ne" data-handle="ne"></div>
+            <div class="resize-handle handle-sw" data-handle="sw"></div>
+            <div class="resize-handle handle-se" data-handle="se"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Справа: Панель результатов QA -->
+      <div class="sidebar">
+        <h3>Выделенная область (Оригинал)</h3>
+        <div class="preview-container">
+          <canvas id="preview-canvas"></canvas>
+        </div>
+        <div id="selection-info">Размер: 0 x 0 px</div>
+
+        <div class="qa-visuals" id="qa-visuals" style="display: none;">
+          <h3>Локальное среднее (μ)</h3>
+          <div class="preview-container">
+            <canvas id="mu-canvas"></canvas>
+          </div>
+
+          <h3>Локальная дисперсия (σ)</h3>
+          <div class="preview-container">
+            <canvas id="sigma-canvas"></canvas>
+          </div>
+
+          <h3>MSCN-коэффициенты</h3>
+          <div class="preview-container">
+            <canvas id="mscn-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/renderer.ts"></script>
+</body>
+
+</html>

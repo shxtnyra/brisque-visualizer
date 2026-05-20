@@ -1,0 +1,37 @@
+appId: com.brisque.visualizer
+productName: BRISQUE Visualizer
+directories:
+  buildResources: build
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/**'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asar: true
+asarUnpack:
+  - resources/**
+win:
+  executableName: brisque-visualizer
+nsis:
+  artifactName: ${productName}-${version}-${platform}-${arch}.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: Alexander Kunashev
+  category: Utility
+appImage:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+artifactName: ${productName}-${version}-${platform}-${arch}.${ext}
+npmRebuild: false
+publish:
+  provider: generic
+  url: https://example.com/auto-updates

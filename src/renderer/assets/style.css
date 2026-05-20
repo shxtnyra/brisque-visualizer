@@ -1,0 +1,208 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  height: 45px;
+  background-color: #2d2d2d;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  gap: 20px;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.hint {
+  font-size: 12px;
+  color: #888;
+  margin-left: auto;
+}
+
+button {
+  background-color: #007acc;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #0062a3;
+}
+
+.main-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Рабочая область слева с нативной прокруткой при зуме */
+.workspace {
+  flex: 1;
+  background-color: #151515;
+  overflow: auto;
+  /* Обязательно для появления скрытых скроллбаров при зуме */
+  position: relative;
+
+  /* ИЗМЕНЕНО: Центрируем по вертикали и горизонтали, но "безопасно" */
+  display: flex;
+  align-items: safe center;
+  justify-content: safe center;
+  padding: 30px;
+}
+
+.image-wrapper {
+  position: relative;
+  user-select: none;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+  cursor: crosshair;
+}
+
+#target-image {
+  display: block;
+  max-width: none;
+  max-height: none;
+  display: none;
+  /* Покажется только после загрузки */
+}
+
+/* Стили рамки выделения */
+/* Родителю задаем relative, чтобы маркеры позиционировались абсолютно относительно него */
+#selection-box {
+  position: absolute;
+  border: 2px dashed #00ffcc;
+  background-color: rgba(0, 255, 210, 0.15);
+  pointer-events: auto;
+  cursor: move;
+  display: none;
+  box-sizing: border-box;
+}
+
+/* Общие стили для всех угловых маркеров */
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #00ffcc;
+  border: 1px solid #151515;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+/* Расставляем маркеры по углам и задаем правильные курсоры */
+.handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+/* Верхний-левый */
+.handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+/* Верхний-правый */
+.handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+/* Нижний-левый */
+.handle-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+/* Нижний-правый */
+
+/* Боковая панель справа */
+/* Боковая панель справа */
+.sidebar {
+  width: 320px;
+  background-color: #252526;
+  border-left: 1px solid #3c3c3c;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-sizing: border-box;
+  /* ИЗМЕНЕНО: Разрешаем скролл внутри сайдбара */
+  overflow-y: auto;
+}
+
+.qa-visuals {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border-top: 2px dashed #3c3c3c;
+  padding-top: 15px;
+  margin-top: 10px;
+}
+
+.qa-visuals h3 {
+  color: #00ffcc;
+  /* Выделим заголовки QA другим цветом */
+  font-size: 14px;
+}
+
+/* Гарантируем, что все канвасы корректно вписываются */
+canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.sidebar h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  border-bottom: 1px solid #3c3c3c;
+  padding-bottom: 10px;
+}
+
+.preview-container {
+  width: 100%;
+  height: 260px;
+  background-color: #151515;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#preview-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  /* Картинка внутри превью сохраняет пропорции */
+  image-rendering: pixelated;
+  /* Для четкого QA контроля пикселей при увеличении */
+}
+
+#selection-info {
+  font-size: 14px;
+  color: #aaaaaa;
+  font-family: monospace;
+}
