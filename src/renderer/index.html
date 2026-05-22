@@ -37,28 +37,56 @@
       </div>
 
       <!-- Справа: Панель результатов QA -->
-      <div class="sidebar">
-        <h3>Выделенная область (Оригинал)</h3>
-        <div class="preview-container">
-          <canvas id="preview-canvas"></canvas>
-        </div>
+      <div id="sidebar-resizer"></div>
+      <div class="sidebar" id="sidebar">
+
         <div id="selection-info">Размер: 0 x 0 px</div>
 
-        <div class="qa-visuals" id="qa-visuals" style="display: none;">
-          <h3>Локальное среднее (μ)</h3>
-          <div class="preview-container">
-            <canvas id="mu-canvas"></canvas>
+        <div class="tabs-nav" id="qa-tabs-nav" style="display: none;">
+          <button class="tab-btn active" data-target="tab-maps">Карты</button>
+          <button class="tab-btn" data-target="tab-charts">Графики</button>
+          <button class="tab-btn" data-target="tab-features">Признаки</button>
+        </div>
+
+        <div class="tabs-container" id="qa-tabs-container" style="display: none;">
+
+          <div class="tab-content active" id="tab-maps">
+            <div class="qa-visuals">
+
+              <h3>1. Выделенная область (Оригинал)</h3>
+              <div class="preview-container">
+                <canvas id="preview-canvas"></canvas>
+              </div>
+
+              <h3>2. Локальное среднее (μ)</h3>
+              <div class="preview-container">
+                <canvas id="mu-canvas"></canvas>
+              </div>
+
+              <h3>3. Локальная дисперсия (σ)</h3>
+              <div class="preview-container">
+                <canvas id="sigma-canvas"></canvas>
+              </div>
+
+              <h3>4. MSCN-коэффициенты</h3>
+              <div class="preview-container">
+                <canvas id="mscn-canvas"></canvas>
+              </div>
+
+            </div>
           </div>
 
-          <h3>Локальная дисперсия (σ)</h3>
-          <div class="preview-container">
-            <canvas id="sigma-canvas"></canvas>
+          <div class="tab-content" id="tab-charts">
+            <h3>Распределение коэффициентов MSCN</h3>
+            <div class="preview-container chart-container">
+              <canvas id="mscn-chart-canvas"></canvas>
+            </div>
           </div>
 
-          <h3>MSCN-коэффициенты</h3>
-          <div class="preview-container">
-            <canvas id="mscn-canvas"></canvas>
+          <div class="tab-content" id="tab-features">
+            <div class="placeholder-box">Здесь будет таблица из 36 математических параметров BRISQUE</div>
           </div>
+
         </div>
       </div>
     </div>

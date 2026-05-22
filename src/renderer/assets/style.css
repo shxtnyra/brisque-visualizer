@@ -77,8 +77,14 @@ button:hover {
   display: block;
   max-width: none;
   max-height: none;
-  display: none;
-  /* Покажется только после загрузки */
+
+  /* Это самое важное для отключения сглаживания в <img> */
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+
+  /* Дополнительно: предотвращает растяжение при изменении размеров контейнера */
+  /* Если вы хотите, чтобы при масштабировании зумом пиксели были четкими: */
+  transform-origin: 0 0;
 }
 
 /* Стили рамки выделения */
@@ -91,6 +97,7 @@ button:hover {
   cursor: move;
   display: none;
   box-sizing: border-box;
+
 }
 
 /* Общие стили для всех угловых маркеров */
@@ -137,7 +144,7 @@ button:hover {
 /* Боковая панель справа */
 /* Боковая панель справа */
 .sidebar {
-  width: 320px;
+  width: 420px;
   background-color: #252526;
   border-left: 1px solid #3c3c3c;
   padding: 20px;
@@ -152,10 +159,9 @@ button:hover {
 .qa-visuals {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  border-top: 2px dashed #3c3c3c;
-  padding-top: 15px;
-  margin-top: 10px;
+  gap: 12px;
+  /* Убираем border-top и padding-top, так как блок теперь идет сразу под табами */
+  margin-top: 5px;
 }
 
 .qa-visuals h3 {
@@ -182,7 +188,8 @@ canvas {
 
 .preview-container {
   width: 100%;
-  height: 260px;
+  height: 200px;
+  /* Сделали компактнее для удобного вертикального скролла */
   background-color: #151515;
   border: 1px solid #3c3c3c;
   border-radius: 4px;
@@ -190,14 +197,15 @@ canvas {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  /* Картинка аккуратно масштабируется/вписывается без внутренних скроллбаров */
 }
 
 #preview-canvas {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  /* Картинка внутри превью сохраняет пропорции */
+  width: auto;
+  height: auto;
+  display: block;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
   /* Для четкого QA контроля пикселей при увеличении */
 }
 
@@ -205,4 +213,97 @@ canvas {
   font-size: 14px;
   color: #aaaaaa;
   font-family: monospace;
+}
+
+/* ================= TABS UI ================= */
+.tabs-nav {
+  display: flex;
+  gap: 4px;
+  margin-top: 15px;
+  border-bottom: 2px solid #3c3c3c;
+}
+
+.tab-btn {
+  flex: 1;
+  background-color: transparent;
+  color: #888;
+  padding: 8px 0;
+  font-size: 12px;
+  border-radius: 4px 4px 0 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  /* Наезд на границу контейнера */
+}
+
+.tab-btn.active {
+  color: #00ffcc;
+  border-bottom: 2px solid #00ffcc;
+  background-color: rgba(0, 255, 204, 0.05);
+}
+
+.tab-btn:hover:not(.active) {
+  color: #ddd;
+  background-color: #333;
+}
+
+/* Вместо display: none для неактивных табов */
+.tab-content {
+  position: absolute;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tab-content.active {
+  position: static;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Стили для заглушек */
+.placeholder-box {
+  color: #666;
+  text-align: center;
+  padding: 40px 20px;
+  border: 1px dashed #444;
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: #1a1a1a;
+}
+
+#sidebar-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background-color: #333;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+#sidebar-resizer:hover,
+#sidebar-resizer:active {
+  background-color: #007acc;
+  /* Подсветка при наведении */
+}
+
+/* Контейнер для аналитического графика в сайдбаре */
+/* Обновленный контейнер для графика */
+.preview-container.chart-container {
+  background-color: #1a1a1a;
+  border: 1px solid #2d2d2d;
+  padding: 15px;
+  /* Увеличили внутренние отступы */
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 320px;
+  /* Жестко задаем комфортную высоту, чтобы графику хватало места */
+  box-sizing: border-box;
+}
+
+#mscn-chart-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
