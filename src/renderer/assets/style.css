@@ -1,3 +1,6 @@
+@import 'katex/dist/katex.min.css';
+
+/* ================= БАЗОВЫЕ СТИЛИ ================= */
 body {
   margin: 0;
   padding: 0;
@@ -51,15 +54,12 @@ button:hover {
   overflow: hidden;
 }
 
-/* Рабочая область слева с нативной прокруткой при зуме */
+/* ================= РАБОЧАЯ ОБЛАСТЬ (ЛЕВАЯ ЧАСТЬ) ================= */
 .workspace {
   flex: 1;
   background-color: #151515;
   overflow: auto;
-  /* Обязательно для появления скрытых скроллбаров при зуме */
   position: relative;
-
-  /* ИЗМЕНЕНО: Центрируем по вертикали и горизонтали, но "безопасно" */
   display: flex;
   align-items: safe center;
   justify-content: safe center;
@@ -77,18 +77,12 @@ button:hover {
   display: block;
   max-width: none;
   max-height: none;
-
-  /* Это самое важное для отключения сглаживания в <img> */
   image-rendering: -moz-crisp-edges;
   image-rendering: pixelated;
-
-  /* Дополнительно: предотвращает растяжение при изменении размеров контейнера */
-  /* Если вы хотите, чтобы при масштабировании зумом пиксели были четкими: */
   transform-origin: 0 0;
 }
 
-/* Стили рамки выделения */
-/* Родителю задаем relative, чтобы маркеры позиционировались абсолютно относительно него */
+/* ================= РАМКА ВЫДЕЛЕНИЯ ================= */
 #selection-box {
   position: absolute;
   border: 2px dashed #00ffcc;
@@ -97,10 +91,8 @@ button:hover {
   cursor: move;
   display: none;
   box-sizing: border-box;
-
 }
 
-/* Общие стили для всех угловых маркеров */
 .resize-handle {
   position: absolute;
   width: 10px;
@@ -111,38 +103,63 @@ button:hover {
   z-index: 10;
 }
 
-/* Расставляем маркеры по углам и задаем правильные курсоры */
 .handle-nw {
   top: -5px;
   left: -5px;
   cursor: nwse-resize;
 }
 
-/* Верхний-левый */
 .handle-ne {
   top: -5px;
   right: -5px;
   cursor: nesw-resize;
 }
 
-/* Верхний-правый */
 .handle-sw {
   bottom: -5px;
   left: -5px;
   cursor: nesw-resize;
 }
 
-/* Нижний-левый */
 .handle-se {
   bottom: -5px;
   right: -5px;
   cursor: nwse-resize;
 }
 
-/* Нижний-правый */
+/* ================= ИНФО И СЧЕТ (SIDEBAR HEADER) ================= */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #1a1a1a;
+  padding: 12px 15px;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
 
-/* Боковая панель справа */
-/* Боковая панель справа */
+#selection-info {
+  font-size: 13px;
+  color: #aaaaaa;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+
+#brisque-score-container {
+  font-size: 13px;
+  color: #cccccc;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+#brisque-score-val {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 16px;
+  font-weight: bold;
+  margin-left: 5px;
+  /* Цвет будет меняться динамически через JS, но зададим базовый */
+  color: #ffaa00;
+}
+
+/* ================= САЙДБАР (ПРАВАЯ ЧАСТЬ) ================= */
 .sidebar {
   width: 420px;
   background-color: #252526;
@@ -152,30 +169,7 @@ button:hover {
   flex-direction: column;
   gap: 15px;
   box-sizing: border-box;
-  /* ИЗМЕНЕНО: Разрешаем скролл внутри сайдбара */
   overflow-y: auto;
-}
-
-.qa-visuals {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  /* Убираем border-top и padding-top, так как блок теперь идет сразу под табами */
-  margin-top: 5px;
-}
-
-.qa-visuals h3 {
-  color: #00ffcc;
-  /* Выделим заголовки QA другим цветом */
-  font-size: 14px;
-}
-
-/* Гарантируем, что все канвасы корректно вписываются */
-canvas {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
 }
 
 .sidebar h3 {
@@ -186,10 +180,44 @@ canvas {
   padding-bottom: 10px;
 }
 
+#sidebar-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background-color: #333;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+#sidebar-resizer:hover,
+#sidebar-resizer:active {
+  background-color: #007acc;
+}
+
+/* ================= КАРТЫ И ПРЕВЬЮ ================= */
+.qa-visuals {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 5px;
+}
+
+.qa-visuals h3 {
+  color: #00ffcc;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .preview-container {
   width: 100%;
   height: 200px;
-  /* Сделали компактнее для удобного вертикального скролла */
   background-color: #151515;
   border: 1px solid #3c3c3c;
   border-radius: 4px;
@@ -197,7 +225,6 @@ canvas {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  /* Картинка аккуратно масштабируется/вписывается без внутренних скроллбаров */
 }
 
 #preview-canvas {
@@ -206,7 +233,6 @@ canvas {
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  /* Для четкого QA контроля пикселей при увеличении */
 }
 
 #selection-info {
@@ -215,7 +241,7 @@ canvas {
   font-family: monospace;
 }
 
-/* ================= TABS UI ================= */
+/* ================= ВКЛАДКИ (TABS) ================= */
 .tabs-nav {
   display: flex;
   gap: 4px;
@@ -232,7 +258,6 @@ canvas {
   border-radius: 4px 4px 0 0;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-  /* Наезд на границу контейнера */
 }
 
 .tab-btn.active {
@@ -246,7 +271,6 @@ canvas {
   background-color: #333;
 }
 
-/* Вместо display: none для неактивных табов */
 .tab-content {
   position: absolute;
   visibility: hidden;
@@ -261,7 +285,6 @@ canvas {
   pointer-events: auto;
 }
 
-/* Стили для заглушек */
 .placeholder-box {
   color: #666;
   text-align: center;
@@ -272,33 +295,16 @@ canvas {
   background-color: #1a1a1a;
 }
 
-#sidebar-resizer {
-  width: 4px;
-  cursor: col-resize;
-  background-color: #333;
-  transition: background-color 0.2s;
-  z-index: 10;
-}
-
-#sidebar-resizer:hover,
-#sidebar-resizer:active {
-  background-color: #007acc;
-  /* Подсветка при наведении */
-}
-
-/* Контейнер для аналитического графика в сайдбаре */
-/* Обновленный контейнер для графика */
+/* ================= ГРАФИКИ ================= */
 .preview-container.chart-container {
   background-color: #1a1a1a;
   border: 1px solid #2d2d2d;
   padding: 15px;
-  /* Увеличили внутренние отступы */
   border-radius: 4px;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 320px;
-  /* Жестко задаем комфортную высоту, чтобы графику хватало места */
   box-sizing: border-box;
 }
 
@@ -306,4 +312,166 @@ canvas {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* ================= ТАБЛИЦА ПРИЗНАКОВ ================= */
+.features-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-right: 5px;
+}
+
+.scale-section {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.scale-title {
+  margin: 0;
+  padding: 10px 15px;
+  background: #252525;
+  color: #00ffaa;
+  font-size: 13px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #333;
+}
+
+.features-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.features-table th,
+.features-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.features-table th {
+  color: #888;
+  font-weight: normal;
+  background: #111;
+}
+
+.features-table td {
+  color: #ddd;
+}
+
+.features-table .val {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  text-align: right;
+  color: #64b5f6;
+}
+
+.features-table .empty {
+  color: #444;
+}
+
+.features-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.features-table tbody tr:hover {
+  background: #222;
+}
+
+.highlight-row {
+  background: rgba(0, 255, 170, 0.05);
+}
+
+/* ================= АКАДЕМИЧЕСКАЯ СПРАВКА (ТЕМНАЯ ТЕМА) ================= */
+.sidebar-divider {
+  height: 1px;
+  background: #3c3c3c;
+  margin: 15px 0;
+}
+
+#academic-help-container {
+  padding: 15px;
+  background: #1a1a1a;
+  border-radius: 6px;
+  border: 1px solid #333;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #cccccc;
+}
+
+#academic-help-container h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #00ffcc;
+  font-size: 14px;
+}
+
+.help-desc {
+  color: #aaaaaa;
+  margin-bottom: 12px;
+}
+
+.help-math {
+  margin: 12px 0;
+  padding: 12px;
+  background: #111111;
+  border-radius: 4px;
+  border: 1px solid #2a2a2a;
+  overflow-x: auto;
+  color: #e0e0e0;
+  text-align: center;
+}
+
+.help-interpret {
+  font-size: 12px;
+  color: #888888;
+}
+
+/* ================= TOOLTIPS (ПОДСКАЗКИ ПРИ НАВЕДЕНИИ) ================= */
+.custom-tooltip {
+  position: absolute;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid #3c3c3c;
+  color: #ddd;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  max-width: 300px;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease-in-out;
+  line-height: 1.4;
+}
+
+.custom-tooltip .katex-display {
+  margin: 8px 0;
+}
+
+.hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #333;
+  color: #00ffcc;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: help;
+  margin-left: 6px;
+  vertical-align: middle;
+  border: 1px solid #444;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.hint-icon:hover {
+  background: #00ffcc;
+  color: #111;
+  border-color: #00ffcc;
 }

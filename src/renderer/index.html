@@ -12,21 +12,16 @@
 
 <body>
   <div class="app">
-    <!-- Верхняя панель управления -->
     <div class="toolbar">
       <button id="open-btn">Открыть изображение</button>
       <span id="zoom-info">Масштаб: 100%</span>
       <span class="hint">Колесо мыши — масштаб | ЛКМ + Тянуть — выделение области</span>
     </div>
 
-    <!-- Главный экран -->
     <div class="main-layout">
-      <!-- Слева: Зона просмотра изображения -->
       <div class="workspace" id="workspace">
         <div class="image-wrapper" id="image-wrapper">
           <img id="target-image" draggable="false" />
-          <!-- Рамка выделения -->
-          <!-- Рамка выделения с угловыми маркерами для ресайза -->
           <div id="selection-box">
             <div class="resize-handle handle-nw" data-handle="nw"></div>
             <div class="resize-handle handle-ne" data-handle="ne"></div>
@@ -36,11 +31,15 @@
         </div>
       </div>
 
-      <!-- Справа: Панель результатов QA -->
       <div id="sidebar-resizer"></div>
       <div class="sidebar" id="sidebar">
 
-        <div id="selection-info">Размер: 0 x 0 px</div>
+        <div class="sidebar-header">
+          <div id="selection-info">Размер: 0 x 0 px</div>
+          <div id="brisque-score-container" style="display: none;">
+            BRISQUE: <span id="brisque-score-val">0.00</span>
+          </div>
+        </div>
 
         <div class="tabs-nav" id="qa-tabs-nav" style="display: none;">
           <button class="tab-btn active" data-target="tab-maps">Карты</button>
@@ -53,22 +52,22 @@
           <div class="tab-content active" id="tab-maps">
             <div class="qa-visuals">
 
-              <h3>1. Выделенная область (Оригинал)</h3>
+              <h3>1. Выделенная область</h3>
               <div class="preview-container">
                 <canvas id="preview-canvas"></canvas>
               </div>
 
-              <h3>2. Локальное среднее (μ)</h3>
+              <h3>Карта μ <span class="hint-icon" data-hint="hint-mu">?</span></h3>
               <div class="preview-container">
                 <canvas id="mu-canvas"></canvas>
               </div>
 
-              <h3>3. Локальная дисперсия (σ)</h3>
+              <h3>Карта σ <span class="hint-icon" data-hint="hint-sigma">?</span></h3>
               <div class="preview-container">
                 <canvas id="sigma-canvas"></canvas>
               </div>
 
-              <h3>4. MSCN-коэффициенты</h3>
+              <h3>Карта MSCN <span class="hint-icon" data-hint="hint-mscn">?</span></h3>
               <div class="preview-container">
                 <canvas id="mscn-canvas"></canvas>
               </div>
@@ -77,7 +76,7 @@
           </div>
 
           <div class="tab-content" id="tab-charts">
-            <h3>Распределение коэффициентов MSCN</h3>
+            <h3>Гистограмма MSCN <span class="hint-icon" data-hint="hint-chart-mscn">?</span></h3>
             <div class="preview-container chart-container">
               <canvas id="mscn-chart-canvas"></canvas>
             </div>
@@ -88,6 +87,8 @@
           </div>
 
         </div>
+
+        <div id="academic-help-container"></div>
       </div>
     </div>
   </div>
