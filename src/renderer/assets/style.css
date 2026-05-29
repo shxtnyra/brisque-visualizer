@@ -1,12 +1,13 @@
 @import 'katex/dist/katex.min.css';
+@import 'theme-active.css';
 
 /* ================= БАЗОВЫЕ СТИЛИ ================= */
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: #1e1e1e;
-  color: #e0e0e0;
+  font-family: var(--font-base);
+  background-color: var(--bg);
+  color: var(--text);
   height: 100vh;
   overflow: hidden;
 }
@@ -19,22 +20,22 @@ body {
 
 .toolbar {
   height: 45px;
-  background-color: #2d2d2d;
+  background-color: var(--toolbar-bg, var(--panel));
   display: flex;
   align-items: center;
   padding: 0 15px;
   gap: 20px;
-  border-bottom: 1px solid #3c3c3c;
+  border-bottom: 1px solid var(--border);
 }
 
 .hint {
   font-size: 12px;
-  color: #888;
+  color: var(--muted-2);
   margin-left: auto;
 }
 
 button {
-  background-color: #007acc;
+  background-color: var(--primary);
   color: white;
   border: none;
   padding: 6px 14px;
@@ -45,7 +46,7 @@ button {
 }
 
 button:hover {
-  background-color: #0062a3;
+  background-color: var(--accent-2);
 }
 
 .main-layout {
@@ -57,7 +58,7 @@ button:hover {
 /* ================= РАБОЧАЯ ОБЛАСТЬ (ЛЕВАЯ ЧАСТЬ) ================= */
 .workspace {
   flex: 1;
-  background-color: #151515;
+  background-color: var(--surface);
   overflow: auto;
   position: relative;
   display: flex;
@@ -69,7 +70,7 @@ button:hover {
 .image-wrapper {
   position: relative;
   user-select: none;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow);
   cursor: crosshair;
 }
 
@@ -85,7 +86,7 @@ button:hover {
 /* ================= РАМКА ВЫДЕЛЕНИЯ ================= */
 #selection-box {
   position: absolute;
-  border: 2px dashed #00ffcc;
+  border: 2px dashed var(--accent);
   background-color: rgba(0, 255, 210, 0.15);
   pointer-events: auto;
   cursor: move;
@@ -97,8 +98,8 @@ button:hover {
   position: absolute;
   width: 10px;
   height: 10px;
-  background-color: #00ffcc;
-  border: 1px solid #151515;
+  background-color: var(--accent);
+  border: 1px solid var(--surface);
   box-sizing: border-box;
   z-index: 10;
 }
@@ -132,38 +133,37 @@ button:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #1a1a1a;
+  background-color: var(--panel);
   padding: 12px 15px;
-  border-radius: 6px;
-  border: 1px solid #333;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 
 #selection-info {
   font-size: 13px;
-  color: #aaaaaa;
-  font-family: 'JetBrains Mono', Consolas, monospace;
+  color: var(--muted);
+  font-family: var(--code-font-family);
 }
 
 #brisque-score-container {
   font-size: 13px;
-  color: #cccccc;
-  font-family: 'Segoe UI', sans-serif;
+  color: var(--text);
+  font-family: var(--font-base);
 }
 
 #brisque-score-val {
-  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-family: var(--code-font-family);
   font-size: 16px;
   font-weight: bold;
   margin-left: 5px;
-  /* Цвет будет меняться динамически через JS, но зададим базовый */
-  color: #ffaa00;
+  color: var(--accent-2);
 }
 
 /* ================= САЙДБАР (ПРАВАЯ ЧАСТЬ) ================= */
 .sidebar {
-  width: 420px;
-  background-color: #252526;
-  border-left: 1px solid #3c3c3c;
+  width: 460px;
+  background-color: var(--panel-2);
+  border-left: 1px solid var(--border);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -176,21 +176,54 @@ button:hover {
   margin: 0;
   font-size: 16px;
   font-weight: 500;
-  border-bottom: 1px solid #3c3c3c;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 10px;
 }
 
 #sidebar-resizer {
   width: 4px;
   cursor: col-resize;
-  background-color: #333;
+  background-color: var(--muted-border);
   transition: background-color 0.2s;
   z-index: 10;
 }
 
 #sidebar-resizer:hover,
 #sidebar-resizer:active {
-  background-color: #007acc;
+  background-color: var(--primary);
+}
+
+/* Themed scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 10px;
+  border: 2px solid var(--scroll-track);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--scroll-thumb) 70%, black);
+}
+
+.sidebar,
+.scale-section,
+.help-math,
+.features-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
 }
 
 /* ================= КАРТЫ И ПРЕВЬЮ ================= */
@@ -202,7 +235,7 @@ button:hover {
 }
 
 .qa-visuals h3 {
-  color: #00ffcc;
+  color: var(--accent);
   font-size: 14px;
   display: flex;
   align-items: center;
@@ -218,8 +251,8 @@ canvas {
 .preview-container {
   width: 100%;
   height: 200px;
-  background-color: #151515;
-  border: 1px solid #3c3c3c;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -237,7 +270,7 @@ canvas {
 
 #selection-info {
   font-size: 14px;
-  color: #aaaaaa;
+  color: var(--muted);
   font-family: monospace;
 }
 
@@ -246,13 +279,13 @@ canvas {
   display: flex;
   gap: 4px;
   margin-top: 15px;
-  border-bottom: 2px solid #3c3c3c;
+  border-bottom: 2px solid var(--border);
 }
 
 .tab-btn {
   flex: 1;
   background-color: transparent;
-  color: #888;
+  color: var(--muted-2);
   padding: 8px 0;
   font-size: 12px;
   border-radius: 4px 4px 0 0;
@@ -261,14 +294,14 @@ canvas {
 }
 
 .tab-btn.active {
-  color: #00ffcc;
-  border-bottom: 2px solid #00ffcc;
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
   background-color: rgba(0, 255, 204, 0.05);
 }
 
 .tab-btn:hover:not(.active) {
-  color: #ddd;
-  background-color: #333;
+  color: var(--text);
+  background-color: var(--muted-border);
 }
 
 .tab-content {
@@ -276,6 +309,7 @@ canvas {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
+  transition: opacity 0.15s ease-in-out;
 }
 
 .tab-content.active {
@@ -286,19 +320,19 @@ canvas {
 }
 
 .placeholder-box {
-  color: #666;
+  color: var(--muted);
   text-align: center;
   padding: 40px 20px;
-  border: 1px dashed #444;
+  border: 1px dashed var(--muted-border);
   border-radius: 4px;
   font-size: 13px;
-  background-color: #1a1a1a;
+  background-color: var(--panel);
 }
 
 /* ================= ГРАФИКИ ================= */
 .preview-container.chart-container {
-  background-color: #1a1a1a;
-  border: 1px solid #2d2d2d;
+  background-color: var(--panel);
+  border: 1px solid var(--border);
   padding: 15px;
   border-radius: 4px;
   display: flex;
@@ -323,20 +357,22 @@ canvas {
 }
 
 .scale-section {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 6px;
-  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
 }
 
 .scale-title {
   margin: 0;
   padding: 10px 15px;
-  background: #252525;
-  color: #00ffaa;
+  background: var(--panel-2);
+  color: var(--accent-2);
   font-size: 13px;
   text-transform: uppercase;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border);
 }
 
 .features-table {
@@ -344,32 +380,46 @@ canvas {
   border-collapse: collapse;
   font-size: 12px;
   text-align: left;
+  table-layout: fixed;
 }
 
 .features-table th,
 .features-table td {
   padding: 8px 10px;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--muted-border);
+  box-sizing: border-box;
 }
 
 .features-table th {
-  color: #888;
+  color: var(--muted-2);
   font-weight: normal;
-  background: #111;
+  background: var(--table-header-bg);
+  text-align: right;
+}
+
+.features-table th:nth-child(1),
+.features-table td:nth-child(1) {
+  width: 34%;
+}
+
+.features-table th:nth-child(n+2),
+.features-table td:nth-child(n+2) {
+  width: 16.5%;
 }
 
 .features-table td {
-  color: #ddd;
+  color: var(--text);
+  white-space: nowrap;
 }
 
 .features-table .val {
-  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-family: var(--code-font-family);
   text-align: right;
-  color: #64b5f6;
+  color: var(--code-color);
 }
 
 .features-table .empty {
-  color: #444;
+  color: var(--muted);
 }
 
 .features-table tbody tr:last-child td {
@@ -377,71 +427,71 @@ canvas {
 }
 
 .features-table tbody tr:hover {
-  background: #222;
+  background: var(--table-row-hover);
 }
 
 .highlight-row {
   background: rgba(0, 255, 170, 0.05);
 }
 
-/* ================= АКАДЕМИЧЕСКАЯ СПРАВКА (ТЕМНАЯ ТЕМА) ================= */
+/* ================= АКАДЕМИЧЕСКАЯ СПРАВКА ================= */
 .sidebar-divider {
   height: 1px;
-  background: #3c3c3c;
+  background: var(--border);
   margin: 15px 0;
 }
 
 #academic-help-container {
   padding: 15px;
-  background: #1a1a1a;
+  background: var(--panel);
   border-radius: 6px;
-  border: 1px solid #333;
+  border: 1px solid var(--border);
   font-size: 13px;
   line-height: 1.5;
-  color: #cccccc;
+  color: var(--text);
 }
 
 #academic-help-container h4 {
   margin-top: 0;
   margin-bottom: 10px;
-  color: #00ffcc;
+  color: var(--accent);
   font-size: 14px;
 }
 
 .help-desc {
-  color: #aaaaaa;
+  color: var(--muted);
   margin-bottom: 12px;
 }
 
 .help-math {
   margin: 12px 0;
   padding: 12px;
-  background: #111111;
+  background: var(--table-header-bg);
   border-radius: 4px;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--muted-border);
   overflow-x: auto;
-  color: #e0e0e0;
+  color: var(--text);
   text-align: center;
 }
 
 .help-interpret {
   font-size: 12px;
-  color: #888888;
+  color: var(--muted-2);
 }
 
-/* ================= TOOLTIPS (ПОДСКАЗКИ ПРИ НАВЕДЕНИИ) ================= */
+/* ================= TOOLTIPS ================= */
 .custom-tooltip {
   position: absolute;
-  background: rgba(20, 20, 20, 0.95);
-  border: 1px solid #3c3c3c;
-  color: #ddd;
+  background: var(--tooltip-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 12px;
   max-width: 300px;
   pointer-events: none;
   z-index: 9999;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s ease-in-out;
@@ -459,19 +509,19 @@ canvas {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #333;
-  color: #00ffcc;
+  background: var(--muted-border);
+  color: var(--accent);
   font-size: 11px;
   font-weight: bold;
   cursor: help;
   margin-left: 6px;
   vertical-align: middle;
-  border: 1px solid #444;
+  border: 1px solid var(--muted-border);
   transition: background 0.2s, border-color 0.2s;
 }
 
 .hint-icon:hover {
-  background: #00ffcc;
-  color: #111;
-  border-color: #00ffcc;
+  background: var(--accent);
+  color: var(--panel);
+  border-color: var(--accent);
 }

@@ -1,4 +1,0 @@
-image-quality
-numpy
-pillow
-scikit-image

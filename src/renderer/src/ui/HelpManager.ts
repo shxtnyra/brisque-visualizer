@@ -1,12 +1,16 @@
-import katex from 'katex'
+import { renderLatex } from './MathUtils'
+import { HelpTabKey } from '../types'
 
 interface HelpTopic {
   title: string
   description: string
-  formula: string
-  interpretation: string
+  formula?: string
+  interpretation?: string
 }
 
+/**
+ * Менеджер контекстной помощи и отображения теории/формул по вкладкам.
+ */
 export class HelpManager {
   private topics: Record<string, HelpTopic> = {
     'tab-maps': {
@@ -33,6 +37,13 @@ export class HelpManager {
       formula: 'H(x,y) = \\hat{I}(x,y)\\hat{I}(x+1,y)',
       interpretation:
         'Эти признаки описывают пространственную корреляцию пикселей. Полученный вектор из 36 чисел затем передается в модель SVR для получения финальной оценки качества снимка.'
+    },
+    empty: {
+      title: 'Выделите область для анализа',
+      description:
+        'Чтобы начать BRISQUE-анализ, выберите область на изображении левой кнопкой мыши. Двойной клик выделяет всё изображение.',
+      interpretation:
+        'После выделения область будет обработана, и справа появятся карты, гистограммы и таблица признаков.'
     }
   }
 
@@ -43,27 +54,27 @@ export class HelpManager {
   }
 
   /**
-   * Метод динамически обновляет блок теории при переключении вкладок
+   * Динамически обновляет блок теории при переключении вкладок.
+   * @param tabId Идентификатор вкладки помощи.
    */
-  public updateContext(tabId: string) {
+  public updateContext(tabId: HelpTabKey): void {
     const topic = this.topics[tabId]
     if (!topic) {
       this.container.innerHTML = ''
       return
     }
 
-    // Рендерим формулу из LaTeX-строки в HTML с помощью KaTeX
-    const renderedFormula = katex.renderToString(topic.formula, {
-      displayMode: true, // Выносить формулу на отдельную строку по центру
-      throwOnError: false
-    })
+    const mathHtml = topic.formula ? renderLatex(topic.formula) : ''
+    const interpretationHtml = topic.interpretation
+      ? `<p class="help-interpret"><strong>Что искать на экране:</strong> ${topic.interpretation}</p>`
+      : ''
 
     this.container.innerHTML = `
       <div class="help-panel-content">
         <h4>${topic.title}</h4>
         <p class="help-desc">${topic.description}</p>
-        <div class="help-math">${renderedFormula}</div>
-        <p class="help-interpret"><strong>Что искать на экране:</strong> ${topic.interpretation}</p>
+        ${topic.formula ? `<div class="help-math">${mathHtml}</div>` : ''}
+        ${interpretationHtml}
       </div>
     `
   }

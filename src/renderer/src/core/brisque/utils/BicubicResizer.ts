@@ -1,5 +1,9 @@
 import { BufferPool } from '../BufferPool'
 
+/**
+ * Реализация бикубической интерполяции/ресайза с предвычислением весов
+ * и индексов для повышения производительности.
+ */
 export class BicubicResizer {
   private pool: BufferPool
 
@@ -8,7 +12,9 @@ export class BicubicResizer {
   }
 
   /**
-   * Бикубическая функция весов (как в MATLAB)
+   * Бикубическая функция весов (как в MATLAB).
+   * @param x Расстояние от центра.
+   * @returns {number} Вес ядра для данной дистанции.
    */
   private cubic(x: number): number {
     const a = -0.5
@@ -22,9 +28,16 @@ export class BicubicResizer {
   }
 
   /**
-   * Предрасчет индексов и весов для одного измерения
+   * Предрасчет индексов и весов для одного измерения. Возвращает плоские
+   * массивы весов и индексов для каждого выходного пикселя.
+   * @param inSize Входный размер (ширина или высота).
+   * @param outSize Выходный размер.
+   * @returns Объект {weights, indices, windowSize}.
    */
-  private createWeights(inSize: number, outSize: number) {
+  private createWeights(
+    inSize: number,
+    outSize: number
+  ): { weights: Float32Array; indices: Int32Array; windowSize: number } {
     const scale = outSize / inSize
     // При scale < 1 мы расширяем ядро для антиалиасинга
     const kernelWidth = 4 / scale
@@ -39,13 +52,13 @@ export class BicubicResizer {
       const left = Math.floor(center - kernelWidth / 2)
 
       let weightSum = 0
-      let offset = u * windowSize
+      const offset = u * windowSize
 
       for (let i = 0; i < windowSize; i++) {
         const inIndex = left + i
         const distance = (inIndex - center) * scale
 
-        let w = this.cubic(distance) * scale // Умножаем на scale для сохранения яркости
+        const w = this.cubic(distance) * scale // Умножаем на scale для сохранения яркости
         weights[offset + i] = w
         weightSum += w
 
@@ -63,7 +76,13 @@ export class BicubicResizer {
   }
 
   /**
-   * Главный метод изменения размера
+   * Главный метод изменения размера изображения с использованием bi-cubic.
+   * @param src Входной монохромный массив пикселей.
+   * @param wIn Ширина входного изображения.
+   * @param hIn Высота входного изображения.
+   * @param dst Выходной массив (предварительно выделен).
+   * @param wOut Ширина выходного изображения.
+   * @param hOut Высота выходного изображения.
    */
   public resize(
     src: Float32Array,

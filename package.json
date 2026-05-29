@@ -20,8 +20,8 @@
   "scripts": {
     "format": "prettier --write . --ignore-path .prettierignore",
     "prettier:check": "prettier --check . --ignore-path .prettierignore",
-    "lint": "eslint --cache . --ext .ts,.js --ignore-path .eslintignore",
-    "lint:fix": "eslint --fix . --ext .ts,.js --ignore-path .eslintignore",
+    "lint": "eslint --cache . --ext .ts,.js",
+    "lint:fix": "eslint --fix . --ext .ts,.js",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
@@ -32,7 +32,6 @@
     "build": "npm run check && electron-vite build",
     "build:dir": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
-    "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
@@ -54,5 +53,22 @@
     "rimraf": "^5.0.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.6"
+  },
+  "build": {
+    "win": {
+      "target": [
+        "portable",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "tar.gz"
+      ]
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}",
+      "splashImage": null
+    }
   }
 }

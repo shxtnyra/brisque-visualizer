@@ -1,5 +1,11 @@
+/**
+ * Утилиты для рендеринга карт (`mu`, `sigma`, `mscn`) в виде ImageData,
+ * пригодного для отрисовки на Canvas.
+ */
 export class MapRenderer {
-  // 1. Карта средних значений (μ) - просто серый цвет
+  /**
+   * Карта средних значений (μ) - отображается как оттенок серого.
+   */
   renderMu(mu: Float32Array, w: number, h: number): ImageData {
     const img = new ImageData(w, h)
     for (let i = 0; i < mu.length; i++) {
@@ -11,7 +17,9 @@ export class MapRenderer {
     return img
   }
 
-  // 2. Карта локального контраста (σ) - черно-белая
+  /**
+   * Карта локального контраста (σ) - черно-белая.
+   */
   renderSigma(sigma: Float32Array, w: number, h: number): ImageData {
     const img = new ImageData(w, h)
     for (let i = 0; i < sigma.length; i++) {
@@ -24,7 +32,9 @@ export class MapRenderer {
     return img
   }
 
-  // 3. Коэффициенты MSCN - сдвигаем 0 в серый (128)
+  /**
+   * Коэффициенты MSCN - нормализуем и сдвигаем ноль в серый (128).
+   */
   renderMscn(mscn: Float32Array, w: number, h: number): ImageData {
     const img = new ImageData(w, h)
     for (let i = 0; i < mscn.length; i++) {

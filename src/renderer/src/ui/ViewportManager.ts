@@ -1,3 +1,6 @@
+/**
+ * Управляет загрузкой изображения, масштабированием и прокруткой в рабочей области.
+ */
 export class ViewportManager {
   private zoom = 1.0
 
@@ -65,6 +68,7 @@ export class ViewportManager {
     )
   }
 
+  /** Обновляет размеры DOM-элемта изображения в соответствии с текущим зумом. */
   public updateScale(): void {
     if (!this.targetImage.naturalWidth) return
     this.targetImage.style.width = `${this.targetImage.naturalWidth * this.zoom}px`

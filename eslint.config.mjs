@@ -1,17 +1,28 @@
 import { defineConfig } from 'eslint/config'
 import tseslint from '@electron-toolkit/eslint-config-ts'
-import eslintConfigPrettier from '@electron-toolkit/eslint-config-prettier'
+import globals from 'globals'
 
 export default defineConfig(
   {
-    root: true,
-    ignorePatterns: ['node_modules/', 'dist/', 'out/', 'build/', '.vscode/'],
-    env: {
-      browser: true,
-      node: true,
-      es2024: true
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'out/**',
+      'build/**',
+      '.vscode/**',
+      '*.log*',
+      'package-lock.json',
+      'pnpm-lock.yaml'
+    ]
+  },
+  {
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.es2024
+      }
     }
   },
-  tseslint.configs.recommended,
-  eslintConfigPrettier
+  ...tseslint.configs.recommended
 )

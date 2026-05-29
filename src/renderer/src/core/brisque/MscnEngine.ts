@@ -1,11 +1,18 @@
 import { BufferPool } from './BufferPool'
 
+/**
+ * Выходные данные, получаемые после локальной нормализации (MSCN).
+ */
 export interface MscnOutput {
   mu: Float32Array
   sigma: Float32Array
   mscn: Float32Array
 }
 
+/**
+ * Двигатель вычисления MSCN (Mean Subtracted Contrast Normalized) карт.
+ * Выполняет локальное сглаживание, расчет дисперсий и нормализацию.
+ */
 export class MscnEngine {
   private readonly CONST_C = 1.0
 
@@ -13,6 +20,10 @@ export class MscnEngine {
 
   /**
    * Выполняет пространственную локальную нормализацию яркости пикселей.
+   * @param gray Входная карта яркости (grayscale) в виде Float32Array.
+   * @param width Ширина изображения.
+   * @param height Высота изображения.
+   * @returns {MscnOutput} Объект, содержащий локальные mu, sigma и карту mscn.
    */
   public compute(gray: Float32Array, width: number, height: number): MscnOutput {
     const totalPixels = width * height
@@ -55,6 +66,16 @@ export class MscnEngine {
   /**
    * Оптимизированный двухпроходной алгоритм размытия скользящим средним.
    * Вычислительная сложность O(N) инвариантна к радиусу фильтра.
+   */
+  /**
+   * Применяет раздельный (separable) гауссов фильтр: горизонтальная и вертикальная
+   * проливки с использованием одномерного ядра. Работает за O(N).
+   * @param input Входный массив.
+   * @param output Выходной массив (того же размера).
+   * @param width Ширина изображения.
+   * @param height Высота изображения.
+   * @param radius Радиус ядра по каждой оси.
+   * @param temp Временный буфер для промежуточных результатов.
    */
   private applySeparableGaussian(
     input: Float32Array,

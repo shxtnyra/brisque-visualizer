@@ -1,3 +1,6 @@
+/**
+ * Выходы, содержащие карты попарных произведений для соседних пикселей.
+ */
 export interface PairwiseOutput {
   horizontal: Float32Array
   vertical: Float32Array
@@ -5,9 +8,17 @@ export interface PairwiseOutput {
   diagonal2: Float32Array
 }
 
+/**
+ * Вычисляет попарные произведения (горизонталь, вертикаль, диагонали)
+ * для MSCN карты, необходимые для дальнейшей подгонки AGGD.
+ */
 export class PairwiseEngine {
   /**
    * Вычисляет пространственные попарные произведения смежных пикселей MSCN карты.
+   * @param mscn Карта MSCN значений.
+   * @param width Ширина изображения.
+   * @param height Высота изображения.
+   * @returns {PairwiseOutput} Объекты с картами попарных произведений.
    */
   public compute(mscn: Float32Array, width: number, height: number): PairwiseOutput {
     const totalPixels = width * height

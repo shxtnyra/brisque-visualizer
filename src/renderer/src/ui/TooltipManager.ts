@@ -1,10 +1,13 @@
-import katex from 'katex'
+import { renderLatex } from './MathUtils'
 
 interface HintData {
   text: string
   math?: string // Опциональная формула
 }
 
+/**
+ * Простая система подсказок: отображает текст и LaTeX-формулы в плавающем тултипе.
+ */
 export class TooltipManager {
   private tooltipEl: HTMLDivElement
 
@@ -43,7 +46,8 @@ export class TooltipManager {
     this.initListeners()
   }
 
-  private initListeners() {
+  /** Инициализирует глобальные слушатели для показа/перемещения/скрытия тултипов. */
+  private initListeners(): void {
     document.addEventListener('mouseover', e => {
       const target = e.target as HTMLElement
       const hintKey = target.closest('[data-hint]')?.getAttribute('data-hint')
@@ -55,11 +59,7 @@ export class TooltipManager {
         let htmlContent = `<div>${hint.text}</div>`
 
         if (hint.math) {
-          const renderedMath = katex.renderToString(hint.math, {
-            displayMode: true,
-            throwOnError: false
-          })
-          htmlContent += renderedMath
+          htmlContent += renderLatex(hint.math)
         }
 
         this.tooltipEl.innerHTML = htmlContent

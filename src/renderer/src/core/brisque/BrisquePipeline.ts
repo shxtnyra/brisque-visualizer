@@ -1,3 +1,8 @@
+/**
+ * BRISQUE pipeline: координирует этапы извлечения признаков и предсказания
+ * качества изображения. Включает многомасштабный анализ (Scale 1 / Scale 2)
+ * и финальную SVR-регрессию для получения итоговой оценки.
+ */
 import { BufferPool } from './BufferPool'
 import { MscnEngine, MscnOutput } from './MscnEngine'
 import { PairwiseEngine, PairwiseOutput } from './PairwiseEngine'
@@ -5,6 +10,9 @@ import { FeaturesExtractor } from './FeaturesExtractor'
 import { SvrRegressor } from './SvrRegressor'
 import { BicubicResizer } from './utils/BicubicResizer'
 
+/**
+ * Выходные данные пайплайна BRISQUE.
+ */
 export interface PipelineOutput {
   scale1Mscn: MscnOutput
   scale1Pairwise: PairwiseOutput
@@ -22,7 +30,11 @@ export class BrisquePipeline {
   private regressor = new SvrRegressor()
 
   /**
-   * Запуск полного цикла обработки BRISQUE.
+   * Выполняет полный цикл обработки изображения для оценки BRISQUE.
+   * @param rgba Массив пикселей в формате RGBA (Uint8ClampedArray).
+   * @param width Ширина изображения в пикселях.
+   * @param height Высота изображения в пикселях.
+   * @returns {PipelineOutput} Объект с результатами промежуточных шагов и итоговой оценкой.
    */
   public execute(rgba: Uint8ClampedArray, width: number, height: number): PipelineOutput {
     const totalPixels = width * height
@@ -57,7 +69,7 @@ export class BrisquePipeline {
     // Шаг 6. SVR Регрессия — превращение вектора в оценку DMOS
     const finalScore = this.regressor.predict(features36)
 
-    console.log('ВОТ' + features36)
+    console.log('Запустили')
 
     return {
       scale1Mscn,
@@ -69,7 +81,11 @@ export class BrisquePipeline {
   }
 
   /**
-   * Сборка 18 признаков для конкретного масштаба в общий вектор.
+   * Сборка 18 признаков для заданного масштаба в общий вектор признаков.
+   * @param mscn Результат вычисления MSCN для масштаба.
+   * @param pw Результат вычисления попарных произведений для масштаба.
+   * @param out Выходной вектор признаков (предварительно выделен, длина >= offset+18).
+   * @param offset Смещение в выходном массиве, куда записывать признаки данного масштаба.
    */
   private extractScaleFeatures(
     mscn: MscnOutput,
@@ -113,7 +129,7 @@ export class BrisquePipeline {
   }
 
   /**
-   * Очистить память пула при уничтожении пайплайна.
+   * Освобождает внутренние буферы и очищает пул.
    */
   public dispose(): void {
     this.pool.clear()

@@ -2,53 +2,80 @@
 
 Electron + Vite приложение для визуализации качества изображений с помощью BRISQUE.
 
-## О проекте
+## Требования
 
-Это дипломный проект, собранный на Electron и TypeScript. Приложение разделено на три части:
+- Node.js >= 18.0.0
+- npm >= 10.0.0
 
-- `main` — основная часть Electron-приложения,
-- `preload` — безопасный мост между рендером и основным процессом,
-- `renderer` — пользовательский интерфейс.
-
-## Быстрый старт
-
-### Установка зависимостей
+## Установка
 
 ```bash
 npm install
 ```
 
-### Разработка
+## Запуск
 
 ```bash
 npm run dev
 ```
 
-### Обычный запуск сборки
+## Сборка
 
 ```bash
 npm run build
 ```
 
-### Сборка дистрибутива
+## Дополнительные команды сборки
 
 ```bash
+npm run build:dir
 npm run build:win
-npm run build:mac
 npm run build:linux
 ```
 
-## Полезные команды
+## Запуск
 
-- `npm run lint` — проверить код ESLint
-- `npm run format` — отформатировать весь проект через Prettier
-- `npm run typecheck` — выполнить проверку типов TypeScript
-- `npm run check` — линт + тайпчек
-- `npm run clean` — удалить артефакты сборки
+```bash
+npm run dev
+```
 
-## Конфигурации
+## Предпросмотр собранного приложения
 
-- `electron-builder.yml` — упаковка приложения для Windows, macOS и Linux.
-- `tsconfig.node.json` / `tsconfig.web.json` — разделение компиляции на основной процесс и рендер.
-- `eslint.config.mjs` — правила ESLint + Prettier.
-- `.prettierrc.yaml` — параметры форматирования.
+```bash
+npm run start
+```
+
+## Проверки и форматирование
+
+```bash
+npm run lint
+npm run lint:fix
+npm run prettier:check
+npm run typecheck
+npm run check
+npm run clean
+```
+
+## Зависимости
+
+### Runtime
+
+- `@electron-toolkit/preload`
+- `@electron-toolkit/utils`
+- `katex`
+
+### DevDependencies
+
+- `@electron-toolkit/eslint-config-prettier`
+- `@electron-toolkit/eslint-config-ts`
+- `@electron-toolkit/tsconfig`
+- `@types/katex`
+- `@types/node`
+- `electron`
+- `electron-builder`
+- `electron-vite`
+- `eslint`
+- `prettier`
+- `rimraf`
+- `typescript`
+- `vite`

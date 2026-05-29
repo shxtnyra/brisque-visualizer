@@ -1,0 +1,26 @@
+:root {
+  --bg: #1e1e1e;
+  --surface: #151515;
+  --panel: #1a1a1a;
+  --panel-2: #252526;
+  --text: #e0e0e0;
+  --muted: #aaaaaa;
+  --muted-2: #888888;
+  --accent: #00ffcc;
+  --accent-2: #00ffaa;
+  --primary: #007acc;
+  --border: #3c3c3c;
+  --muted-border: #2a2a2a;
+  --table-header-bg: #111;
+  --table-row-hover: #222;
+  --tooltip-bg: rgba(20, 20, 20, 0.95);
+  --scroll-track: #1b1b1b;
+  --scroll-thumb: #444;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --radius: 6px;
+  --gap-sm: 8px;
+  --gap-md: 12px;
+  --font-base: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --code-font-family: 'JetBrains Mono', Consolas, monospace;
+  --code-color: #64b5f6;
+}

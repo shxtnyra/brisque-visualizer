@@ -1,3 +1,7 @@
+/**
+ * Утилита для извлечения статистических признаков из карт MSCN и попарных
+ * произведений: содержит методы подгонки GGD/AGGD и вспомогательные функции.
+ */
 export class FeaturesExtractor {
   // Статическая таблица поиска (Lookup Table) для соответствия alpha -> theoreticalRho
   private static ggdTable: { alpha: number; rho: number }[] = []
@@ -10,8 +14,8 @@ export class FeaturesExtractor {
   }
 
   /**
-   * Инициализация таблицы поиска отношений моментов.
-   * Шаг 0.001 дает точность выше оригинального кода, а скорость поиска увеличивается за счет отсутствия вычислений gamma.
+   * Инициализация таблицы соответствия alpha -> theoreticalRho для быстрого поиска.
+   * Использует шаг 0.001 для компромисса между точностью и временем инициализации.
    */
   private static initGgdTable(): void {
     for (let a = 0.2; a <= 10.0; a += 0.001) {
@@ -25,7 +29,9 @@ export class FeaturesExtractor {
   }
 
   /**
-   * Вычисляет стандартную гамма-функцию Г(x) с помощью аппроксимации Ланцоша.
+   * Вычисляет гамма-функцию Γ(x) с помощью аппроксимации Ланцоша.
+   * @param x Аргумент функции гамма.
+   * @returns Значение Γ(x).
    */
   private static calculateGamma(x: number): number {
     const p = [
@@ -46,7 +52,10 @@ export class FeaturesExtractor {
   }
 
   /**
-   * Быстрый поиск ближайшего alpha в таблице (методом бинарного поиска)
+   * Находит ближайшее значение `alpha` в предвычисленной таблице по заданному `rho`.
+   * Используется бинарный поиск по упорядоченной таблице.
+   * @param targetRho Целевая величина rho для поиска соответствующего alpha.
+   * @returns {number} Ближайшее значение alpha.
    */
   private findClosestAlpha(targetRho: number): number {
     const table = FeaturesExtractor.ggdTable
@@ -76,8 +85,10 @@ export class FeaturesExtractor {
   }
 
   /**
-   * Подгонка Обобщенного Гауссова Распределения (GGD).
-   * Возвращает [alpha, variance]
+   * Подгоняет параметры GGD по входному массиву значений (предполагается
+   * нулевое математическое ожидание для MSCN). Возвращает параметр alpha и дисперсию.
+   * @param arr Входной массив значений (MSCN map).
+   * @returns {[number, number]} Массив [alpha, variance].
    */
   public fitGgd(arr: Float32Array): [number, number] {
     const len = arr.length
@@ -104,8 +115,10 @@ export class FeaturesExtractor {
   }
 
   /**
-   * Подгонка Асимметричного Обобщенного Гауссова Распределения (AGGD).
-   * Возвращает [alpha, leftVariance, rightVariance, theoreticalMean]
+   * Подгоняет параметры AGGD по входному массиву. Возвращает alpha, левую и правую дисперсии
+   * и теоретическое математическое ожидание асимметрии (eta).
+   * @param arr Входной массив значений (попарные произведения).
+   * @returns {[number, number, number, number]} [alpha, leftVariance, rightVariance, eta].
    */
   public fitAggd(arr: Float32Array): [number, number, number, number] {
     const len = arr.length

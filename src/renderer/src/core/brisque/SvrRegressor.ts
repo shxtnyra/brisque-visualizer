@@ -1,5 +1,9 @@
 import { BRISQUE_WEIGHTS } from './BrisqueWeights'
 
+/**
+ * SVR-регрессор, реализующий предсказание DMOS на основе 36-мерного вектора признаков.
+ * Использует заранее обученные веса, опорные векторы и параметры ядра.
+ */
 export class SvrRegressor {
   private readonly gamma = BRISQUE_WEIGHTS.gamma
   private readonly rho = BRISQUE_WEIGHTS.rho
@@ -8,6 +12,11 @@ export class SvrRegressor {
   private readonly svCoef = BRISQUE_WEIGHTS.svCoef
   private readonly supportVectorsFlat = BRISQUE_WEIGHTS.supportVectorsFlat
 
+  /**
+   * Предсказывает оценку качества изображения (DMOS) по вектору признаков.
+   * @param features36 36-мерный вектор признаков.
+   * @returns {number} Предсказанное значение DMOS.
+   */
   public predict(features36: Float32Array): number {
     const scaledFeatures = this.scaleFeatures(features36)
 
@@ -21,10 +30,15 @@ export class SvrRegressor {
       sum += coef * kernelValue
     }
 
-    // Возвращаем результат
+    // Возвращаем результат смещённый на rho.
     return sum - this.rho
   }
 
+  /**
+   * Масштабирует признаки в диапазон [-1, 1] по заранее вычисленным min/max.
+   * @param features Входной 36-мерный вектор.
+   * @returns {Float32Array} Масштабированный вектор.
+   */
   private scaleFeatures(features: Float32Array): Float32Array {
     const scaled = new Float32Array(36)
 
@@ -43,6 +57,13 @@ export class SvrRegressor {
     return scaled
   }
 
+  /**
+   * RBF-ядро между входным вектором и i-тым опорным вектором.
+   * Поддерживает плоское хранение опорных векторов в `supportVectorsFlat`.
+   * @param x Входной вектор.
+   * @param svIndex Индекс опорного вектора.
+   * @returns {number} Значение ядра.
+   */
   private rbfKernel(x: Float32Array, svIndex: number): number {
     let sumSqDiff = 0
     const offset = svIndex * 36 // Смещение для конкретного опорного вектора

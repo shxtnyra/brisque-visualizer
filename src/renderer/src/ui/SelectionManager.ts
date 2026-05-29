@@ -1,3 +1,9 @@
+import { CropRect } from '../types'
+
+/**
+ * Управляет интерактивным выделением области на изображении: рисование,
+ * перемещение, изменение размеров и уведомление слушателей о изменениях.
+ */
 export class SelectionManager {
   private currentMode: 'none' | 'drawing' | 'dragging' | 'resizing' = 'none'
   private activeHandle = ''
@@ -20,166 +26,189 @@ export class SelectionManager {
     private targetImage: HTMLImageElement,
     private selectionBox: HTMLDivElement,
     private getZoom: () => number,
-    private onSelectionChange: (x: number, y: number, w: number, h: number) => void,
+    private onSelectionChange: (crop: CropRect) => void,
     private onSelectionComplete: () => void
   ) {
     this.initEvents()
   }
 
+  /** Инициализация DOM-обработчиков мыши. */
   private initEvents(): void {
-    this.imageWrapper.addEventListener('mousedown', (e: MouseEvent) => {
-      if (!this.targetImage.src || e.button !== 0 || e.detail > 1) return
-      if (
-        e.target === this.selectionBox ||
-        (e.target as HTMLElement).classList.contains('resize-handle')
-      )
-        return
-
-      this.currentMode = 'drawing'
-      const rect = this.imageWrapper.getBoundingClientRect()
-      this.startX = e.clientX - rect.left
-      this.startY = e.clientY - rect.top
-
-      this.selectionBox.style.left = `${this.startX}px`
-      this.selectionBox.style.top = `${this.startY}px`
-      this.selectionBox.style.width = '0px'
-      this.selectionBox.style.height = '0px'
-      this.selectionBox.style.display = 'block'
-    })
-
-    this.imageWrapper.addEventListener('dblclick', (e: MouseEvent) => {
-      if (!this.targetImage.src || e.button !== 0) return
-      e.preventDefault()
-      this.selectAll()
-    })
-
-    this.selectionBox.addEventListener('mousedown', (e: MouseEvent) => {
-      if (e.button !== 0 || (e.target as HTMLElement).classList.contains('resize-handle')) return
-      e.stopPropagation()
-      this.currentMode = 'dragging'
-
-      const rect = this.imageWrapper.getBoundingClientRect()
-      const zoom = this.getZoom()
-      this.dragOffsetX = e.clientX - rect.left - this.cropX * zoom
-      this.dragOffsetY = e.clientY - rect.top - this.cropY * zoom
-    })
-
+    this.imageWrapper.addEventListener('mousedown', event => this.startDrawing(event))
+    this.imageWrapper.addEventListener('dblclick', event => this.handleDoubleClick(event))
+    this.selectionBox.addEventListener('mousedown', event => this.startDragging(event))
     this.selectionBox.querySelectorAll('.resize-handle').forEach(handle => {
-      handle.addEventListener('mousedown', (e: Event) => {
-        const mouseEvent = e as MouseEvent
-        if (mouseEvent.button !== 0) return
-        mouseEvent.stopPropagation()
-
-        this.currentMode = 'resizing'
-        this.activeHandle = (mouseEvent.target as HTMLElement).dataset.handle || ''
-
-        const rect = this.imageWrapper.getBoundingClientRect()
-        this.startX = mouseEvent.clientX - rect.left
-        this.startY = mouseEvent.clientY - rect.top
-
-        this.initCropX = this.cropX
-        this.initCropY = this.cropY
-        this.initCropW = this.cropW
-        this.initCropH = this.cropH
-      })
+      handle.addEventListener('mousedown', event => this.startResizing(event))
     })
+    window.addEventListener('mousemove', event => this.handleMouseMove(event))
+    window.addEventListener('mouseup', () => this.handleMouseUp())
+  }
 
-    window.addEventListener('mousemove', (e: MouseEvent) => {
-      if (this.currentMode === 'none') return
+  private startDrawing(event: MouseEvent): void {
+    if (!this.targetImage.src || event.button !== 0 || event.detail > 1) return
+    if (
+      event.target === this.selectionBox ||
+      (event.target as HTMLElement).classList.contains('resize-handle')
+    )
+      return
 
-      const rect = this.imageWrapper.getBoundingClientRect()
-      let currentX = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
-      let currentY = Math.max(0, Math.min(e.clientY - rect.top, rect.height))
-      const zoom = this.getZoom()
+    this.currentMode = 'drawing'
+    const rect = this.imageWrapper.getBoundingClientRect()
+    this.startX = event.clientX - rect.left
+    this.startY = event.clientY - rect.top
 
-      if (this.currentMode === 'drawing') {
-        const x = Math.min(this.startX, currentX)
-        const y = Math.min(this.startY, currentY)
-        this.cropW = Math.floor(Math.abs(this.startX - currentX) / zoom)
-        this.cropH = Math.floor(Math.abs(this.startY - currentY) / zoom)
-        this.cropX = Math.floor(x / zoom)
-        this.cropY = Math.floor(y / zoom)
-      } else if (this.currentMode === 'dragging') {
-        let targetLeft = Math.max(
-          0,
-          Math.min(currentX - this.dragOffsetX, rect.width - this.cropW * zoom)
-        )
-        let targetTop = Math.max(
-          0,
-          Math.min(currentY - this.dragOffsetY, rect.height - this.cropH * zoom)
-        )
-        this.cropX = Math.floor(targetLeft / zoom)
-        this.cropY = Math.floor(targetTop / zoom)
-      } else if (this.currentMode === 'resizing') {
-        const deltaX = (currentX - this.startX) / zoom
-        const deltaY = (currentY - this.startY) / zoom
-
-        if (this.activeHandle === 'se') {
-          this.cropW = Math.floor(
-            Math.min(
-              this.targetImage.naturalWidth - this.cropX,
-              Math.max(this.MIN_SIZE, this.initCropW + deltaX)
-            )
-          )
-          this.cropH = Math.floor(
-            Math.min(
-              this.targetImage.naturalHeight - this.cropY,
-              Math.max(this.MIN_SIZE, this.initCropH + deltaY)
-            )
-          )
-        } else if (this.activeHandle === 'sw') {
-          if (this.initCropW - deltaX >= this.MIN_SIZE && this.initCropX + deltaX >= 0) {
-            this.cropX = Math.floor(this.initCropX + deltaX)
-            this.cropW = Math.floor(this.initCropW - deltaX)
-          }
-          this.cropH = Math.floor(
-            Math.min(
-              this.targetImage.naturalHeight - this.cropY,
-              Math.max(this.MIN_SIZE, this.initCropH + deltaY)
-            )
-          )
-        } else if (this.activeHandle === 'ne') {
-          this.cropW = Math.floor(
-            Math.min(
-              this.targetImage.naturalWidth - this.cropX,
-              Math.max(this.MIN_SIZE, this.initCropW + deltaX)
-            )
-          )
-          if (this.initCropH - deltaY >= this.MIN_SIZE && this.initCropY + deltaY >= 0) {
-            this.cropY = Math.floor(this.initCropY + deltaY)
-            this.cropH = Math.floor(this.initCropH - deltaY)
-          }
-        } else if (this.activeHandle === 'nw') {
-          if (this.initCropW - deltaX >= this.MIN_SIZE && this.initCropX + deltaX >= 0) {
-            this.cropX = Math.floor(this.initCropX + deltaX)
-            this.cropW = Math.floor(this.initCropW - deltaX)
-          }
-          if (this.initCropH - deltaY >= this.MIN_SIZE && this.initCropY + deltaY >= 0) {
-            this.cropY = Math.floor(this.initCropY + deltaY)
-            this.cropH = Math.floor(this.initCropH - deltaY)
-          }
-        }
-      }
-
-      this.renderBox()
-      this.onSelectionChange(this.cropX, this.cropY, this.cropW, this.cropH)
-    })
-
-    window.addEventListener('mouseup', () => {
-      const previousMode = this.currentMode
-      this.currentMode = 'none'
-      this.activeHandle = ''
-
-      if (previousMode !== 'none') {
-        if (this.cropW < this.MIN_SIZE || this.cropH < this.MIN_SIZE) {
-          this.reset()
-        } else {
-          this.onSelectionComplete()
-        }
-      }
+    Object.assign(this.selectionBox.style, {
+      left: `${this.startX}px`,
+      top: `${this.startY}px`,
+      width: '0px',
+      height: '0px',
+      display: 'block'
     })
   }
 
+  private handleDoubleClick(event: MouseEvent): void {
+    if (!this.targetImage.src || event.button !== 0) return
+    event.preventDefault()
+    this.selectAll()
+  }
+
+  private startDragging(event: MouseEvent): void {
+    if (event.button !== 0 || (event.target as HTMLElement).classList.contains('resize-handle'))
+      return
+    event.stopPropagation()
+
+    this.currentMode = 'dragging'
+    const rect = this.imageWrapper.getBoundingClientRect()
+    const zoom = this.getZoom()
+    this.dragOffsetX = event.clientX - rect.left - this.cropX * zoom
+    this.dragOffsetY = event.clientY - rect.top - this.cropY * zoom
+  }
+
+  private startResizing(event: Event): void {
+    const mouseEvent = event as MouseEvent
+    if (mouseEvent.button !== 0) return
+    mouseEvent.stopPropagation()
+
+    this.currentMode = 'resizing'
+    this.activeHandle = (mouseEvent.target as HTMLElement).dataset.handle || ''
+
+    const rect = this.imageWrapper.getBoundingClientRect()
+    this.startX = mouseEvent.clientX - rect.left
+    this.startY = mouseEvent.clientY - rect.top
+    this.initCropX = this.cropX
+    this.initCropY = this.cropY
+    this.initCropW = this.cropW
+    this.initCropH = this.cropH
+  }
+
+  private handleMouseMove(event: MouseEvent): void {
+    if (this.currentMode === 'none') return
+
+    const rect = this.imageWrapper.getBoundingClientRect()
+    const currentX = Math.max(0, Math.min(event.clientX - rect.left, rect.width))
+    const currentY = Math.max(0, Math.min(event.clientY - rect.top, rect.height))
+    const zoom = this.getZoom()
+
+    if (this.currentMode === 'drawing') {
+      this.updateDrawing(currentX, currentY, zoom)
+    } else if (this.currentMode === 'dragging') {
+      this.updateDragging(currentX, currentY, zoom, rect)
+    } else {
+      this.updateResizing(currentX, currentY, zoom)
+    }
+
+    this.renderBox()
+    this.onSelectionChange({ x: this.cropX, y: this.cropY, w: this.cropW, h: this.cropH })
+  }
+
+  private updateDrawing(currentX: number, currentY: number, zoom: number): void {
+    const left = Math.min(this.startX, currentX)
+    const top = Math.min(this.startY, currentY)
+    this.cropW = Math.floor(Math.abs(this.startX - currentX) / zoom)
+    this.cropH = Math.floor(Math.abs(this.startY - currentY) / zoom)
+    this.cropX = Math.floor(left / zoom)
+    this.cropY = Math.floor(top / zoom)
+  }
+
+  private updateDragging(currentX: number, currentY: number, zoom: number, rect: DOMRect): void {
+    const left = Math.max(0, Math.min(currentX - this.dragOffsetX, rect.width - this.cropW * zoom))
+    const top = Math.max(0, Math.min(currentY - this.dragOffsetY, rect.height - this.cropH * zoom))
+    this.cropX = Math.floor(left / zoom)
+    this.cropY = Math.floor(top / zoom)
+  }
+
+  private updateResizing(currentX: number, currentY: number, zoom: number): void {
+    const deltaX = (currentX - this.startX) / zoom
+    const deltaY = (currentY - this.startY) / zoom
+
+    switch (this.activeHandle) {
+      case 'se':
+        this.cropW = Math.floor(
+          Math.min(
+            this.targetImage.naturalWidth - this.cropX,
+            Math.max(this.MIN_SIZE, this.initCropW + deltaX)
+          )
+        )
+        this.cropH = Math.floor(
+          Math.min(
+            this.targetImage.naturalHeight - this.cropY,
+            Math.max(this.MIN_SIZE, this.initCropH + deltaY)
+          )
+        )
+        break
+      case 'sw':
+        if (this.initCropW - deltaX >= this.MIN_SIZE && this.initCropX + deltaX >= 0) {
+          this.cropX = Math.floor(this.initCropX + deltaX)
+          this.cropW = Math.floor(this.initCropW - deltaX)
+        }
+        this.cropH = Math.floor(
+          Math.min(
+            this.targetImage.naturalHeight - this.cropY,
+            Math.max(this.MIN_SIZE, this.initCropH + deltaY)
+          )
+        )
+        break
+      case 'ne':
+        this.cropW = Math.floor(
+          Math.min(
+            this.targetImage.naturalWidth - this.cropX,
+            Math.max(this.MIN_SIZE, this.initCropW + deltaX)
+          )
+        )
+        if (this.initCropH - deltaY >= this.MIN_SIZE && this.initCropY + deltaY >= 0) {
+          this.cropY = Math.floor(this.initCropY + deltaY)
+          this.cropH = Math.floor(this.initCropH - deltaY)
+        }
+        break
+      case 'nw':
+        if (this.initCropW - deltaX >= this.MIN_SIZE && this.initCropX + deltaX >= 0) {
+          this.cropX = Math.floor(this.initCropX + deltaX)
+          this.cropW = Math.floor(this.initCropW - deltaX)
+        }
+        if (this.initCropH - deltaY >= this.MIN_SIZE && this.initCropY + deltaY >= 0) {
+          this.cropY = Math.floor(this.initCropY + deltaY)
+          this.cropH = Math.floor(this.initCropH - deltaY)
+        }
+        break
+      default:
+        break
+    }
+  }
+
+  private handleMouseUp(): void {
+    const previousMode = this.currentMode
+    this.currentMode = 'none'
+    this.activeHandle = ''
+
+    if (previousMode === 'none') return
+    if (this.cropW < this.MIN_SIZE || this.cropH < this.MIN_SIZE) {
+      this.reset()
+    } else {
+      this.onSelectionComplete()
+    }
+  }
+
+  /** Обновляет DOM-представление рамки выделения в соответствии с текущими координатами. */
   public renderBox(): void {
     const zoom = this.getZoom()
     this.selectionBox.style.left = `${this.cropX * zoom}px`
@@ -188,6 +217,7 @@ export class SelectionManager {
     this.selectionBox.style.height = `${this.cropH * zoom}px`
   }
 
+  /** Выделяет всё изображение и уведомляет слушателей. */
   public selectAll(): void {
     if (!this.targetImage.naturalWidth || !this.targetImage.naturalHeight) return
 
@@ -199,17 +229,19 @@ export class SelectionManager {
     this.selectionBox.style.display = 'block'
 
     this.renderBox()
-    this.onSelectionChange(this.cropX, this.cropY, this.cropW, this.cropH)
+    this.onSelectionChange({ x: this.cropX, y: this.cropY, w: this.cropW, h: this.cropH })
     this.onSelectionComplete()
   }
 
+  /** Сбрасывает выделение и уведомляет слушателей. */
   public reset(): void {
     this.selectionBox.style.display = 'none'
     this.cropX = this.cropY = this.cropW = this.cropH = 0
-    this.onSelectionChange(0, 0, 0, 0)
+    this.onSelectionChange({ x: 0, y: 0, w: 0, h: 0 })
   }
 
-  public getCrop() {
+  /** Возвращает текущую область выделения. */
+  public getCrop(): CropRect {
     return { x: this.cropX, y: this.cropY, w: this.cropW, h: this.cropH }
   }
 }

@@ -1,16 +1,37 @@
+interface FeatureRow {
+  label: string
+  values: Array<number | null>
+  highlight?: boolean
+}
+
+const ROWS: FeatureRow[] = [
+  { label: 'MSCN', values: [0, 1, null, null], highlight: true },
+  { label: 'Горизонталь', values: [2, 3, 4, 5] },
+  { label: 'Вертикаль', values: [6, 7, 8, 9] },
+  { label: 'Диагональ 1', values: [10, 11, 12, 13] },
+  { label: 'Диагональ 2', values: [14, 15, 16, 17] }
+]
+
+/**
+ * Отвечает за визуализацию табличного представления 36 признаков BRISQUE.
+ * Формирует HTML-таблицы с разделением по масштабам и направлениям попарных произведений.
+ */
 export class FeaturesRenderer {
   private container: HTMLElement
 
   constructor(containerId: string) {
-    const el = document.getElementById(containerId)
-    if (!el) throw new Error(`Container #${containerId} not found`)
-    this.container = el
+    const element = document.getElementById(containerId)
+    if (!element) throw new Error(`Container #${containerId} not found`)
+    this.container = element
   }
 
+  /**
+   * Рендерит HTML таблицы признаков для двух масштабов (0 и 18 смещений).
+   * @param features 36-мерный вектор признаков.
+   */
   public render(features: Float32Array): void {
     if (features.length !== 36) return
 
-    // Очищаем плейсхолдер и вставляем две таблицы
     this.container.innerHTML = `
       <div class="features-wrapper">
         ${this.buildScaleTable('Масштаб 1 (100%)', features, 0)}
@@ -19,10 +40,7 @@ export class FeaturesRenderer {
     `
   }
 
-  private buildScaleTable(title: string, f: Float32Array, offset: number): string {
-    // Форматируем числа до 4 знаков после запятой для красоты
-    const fmt = (val: number) => val.toFixed(4)
-
+  private buildScaleTable(title: string, features: Float32Array, offset: number): string {
     return `
       <div class="scale-section">
         <h4 class="scale-title">${title}</h4>
@@ -30,51 +48,32 @@ export class FeaturesRenderer {
           <thead>
             <tr>
               <th>Направление</th>
-              <th title="Форма холма">&alpha; (Alpha)</th>
+              <th title="Форма холма">&alpha;</th>
               <th title="Левая дисперсия / Общая">&sigma;&sup2;_L / &sigma;&sup2;</th>
               <th title="Правая дисперсия">&sigma;&sup2;_R</th>
               <th title="Сдвиг асимметрии">&eta; (Eta)</th>
             </tr>
           </thead>
           <tbody>
-            <tr class="highlight-row">
-              <td>MSCN</td>
-              <td class="val">${fmt(f[offset + 0])}</td>
-              <td class="val">${fmt(f[offset + 1])}</td>
-              <td class="val empty">-</td>
-              <td class="val empty">-</td>
-            </tr>
-            <tr>
-              <td>Горизонталь</td>
-              <td class="val">${fmt(f[offset + 2])}</td>
-              <td class="val">${fmt(f[offset + 3])}</td>
-              <td class="val">${fmt(f[offset + 4])}</td>
-              <td class="val">${fmt(f[offset + 5])}</td>
-            </tr>
-            <tr>
-              <td>Вертикаль</td>
-              <td class="val">${fmt(f[offset + 6])}</td>
-              <td class="val">${fmt(f[offset + 7])}</td>
-              <td class="val">${fmt(f[offset + 8])}</td>
-              <td class="val">${fmt(f[offset + 9])}</td>
-            </tr>
-            <tr>
-              <td>Диагональ 1</td>
-              <td class="val">${fmt(f[offset + 10])}</td>
-              <td class="val">${fmt(f[offset + 11])}</td>
-              <td class="val">${fmt(f[offset + 12])}</td>
-              <td class="val">${fmt(f[offset + 13])}</td>
-            </tr>
-            <tr>
-              <td>Диагональ 2</td>
-              <td class="val">${fmt(f[offset + 14])}</td>
-              <td class="val">${fmt(f[offset + 15])}</td>
-              <td class="val">${fmt(f[offset + 16])}</td>
-              <td class="val">${fmt(f[offset + 17])}</td>
-            </tr>
+            ${ROWS.map(row => this.buildTableRow(row, features, offset)).join('')}
           </tbody>
         </table>
       </div>
+    `
+  }
+
+  private buildTableRow(row: FeatureRow, features: Float32Array, offset: number): string {
+    const formatValue = (value: number | null): string =>
+      value === null ? '-' : features[offset + value].toFixed(4)
+
+    return `
+      <tr class="${row.highlight ? 'highlight-row' : ''}">
+        <td>${row.label}</td>
+        <td class="val">${formatValue(row.values[0])}</td>
+        <td class="val">${formatValue(row.values[1])}</td>
+        <td class="val ${row.values[2] === null ? 'empty' : ''}">${formatValue(row.values[2])}</td>
+        <td class="val ${row.values[3] === null ? 'empty' : ''}">${formatValue(row.values[3])}</td>
+      </tr>
     `
   }
 }
