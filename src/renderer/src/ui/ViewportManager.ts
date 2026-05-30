@@ -21,7 +21,7 @@ export class ViewportManager {
       if (filePath) {
         const normalizedPath = filePath.replace(/\\/g, '/')
         this.targetImage.crossOrigin = 'anonymous'
-        this.targetImage.src = `media:///${normalizedPath}`
+        this.targetImage.src = `media:///${encodeURI(normalizedPath)}`
       }
     })
 
