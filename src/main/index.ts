@@ -54,11 +54,22 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
 
   protocol.handle('media', async request => {
-    let pathString = request.url.replace(/^media:\/\//, '')
-    pathString = decodeURIComponent(pathString)
+    let pathString = decodeURIComponent(new URL(request.url).pathname)
 
-    if (process.platform === 'win32' && /^[a-zA-Z]\//.test(pathString)) {
-      pathString = pathString[0].toUpperCase() + ':' + pathString.slice(1)
+    if (process.platform === 'win32') {
+      // /C:/Users/... → C:/Users/...
+      if (/^\/[a-zA-Z]:\//.test(pathString)) {
+        pathString = pathString.slice(1)
+      } else if (/^[a-zA-Z]\//.test(pathString)) {
+        pathString = pathString[0].toUpperCase() + ':' + pathString.slice(1)
+      }
+    } else {
+      if (pathString.startsWith('//')) {
+        pathString = pathString.slice(1)
+      }
+      if (!pathString.startsWith('/')) {
+        pathString = `/${pathString}`
+      }
     }
 
     try {

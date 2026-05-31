@@ -47,7 +47,22 @@ const els: UiElements = {
   qaTabsNav: requireElement('qa-tabs-nav'),
   qaTabsContainer: requireElement('qa-tabs-container'),
   tabBtns: requireElements('.tab-btn'),
-  tabContents: requireElements('.tab-content')
+  tabContents: requireElements('.tab-content'),
+  fullscreenOpenBtns: requireElements('.fullscreen-open-btn'),
+  fullscreenModal: requireElement('fullscreen-modal'),
+  fullscreenTitle: requireElement('fullscreen-title'),
+  fullscreenZoomInfo: requireElement('fullscreen-zoom-info'),
+  fullscreenCloseBtn: requireElement('fullscreen-close-btn'),
+  fullscreenResetBtn: requireElement('fullscreen-reset-btn'),
+  fullscreenMapViewport: requireElement('fullscreen-map-viewport'),
+  fullscreenMapCanvas: requireElement('fullscreen-map-canvas'),
+  fullscreenChartContainer: requireElement('fullscreen-chart-container'),
+  fullscreenChartCanvas: requireElement('fullscreen-chart-canvas'),
+  fullscreenMapPanel: requireElement('fullscreen-map-panel'),
+  fullscreenChartPanel: requireElement('fullscreen-chart-panel'),
+  fsMapTypeBtns: requireElements('.fs-map-type-btn'),
+  fsChartTypeBtns: requireElements('.fs-chart-type-btn'),
+  fsChartYModeBtns: requireElements('.fs-chart-y-mode-btn')
 }
 
 new AppController(els)

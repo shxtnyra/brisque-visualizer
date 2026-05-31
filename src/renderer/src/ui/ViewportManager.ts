@@ -19,7 +19,8 @@ export class ViewportManager {
     this.openBtn.addEventListener('click', async () => {
       const filePath = await window.api.openFile()
       if (filePath) {
-        const normalizedPath = filePath.replace(/\\/g, '/')
+        // media:///path — ровно три слэша; без ведущего / у path иначе на Linux получится //home/...
+        const normalizedPath = filePath.replace(/\\/g, '/').replace(/^\/+/, '')
         this.targetImage.crossOrigin = 'anonymous'
         this.targetImage.src = `media:///${encodeURI(normalizedPath)}`
       }

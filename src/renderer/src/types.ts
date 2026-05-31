@@ -41,6 +41,9 @@ export type MapKind = 'mu' | 'sigma' | 'mscn' | PairwiseDirection
 /** Режим шкалы Y на гистограммах */
 export type ChartYMode = 'pdf' | 'peak'
 
+/** Режим полноэкранного просмотра */
+export type FullscreenMode = 'map' | 'chart'
+
 /** Параметры GGD-подгонки для MSCN (первые 2 признака масштаба) */
 export interface GgdFitParams {
   alpha: number

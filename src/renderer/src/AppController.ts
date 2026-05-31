@@ -6,6 +6,8 @@ import { SelectionManager } from './ui/SelectionManager'
 import { FeaturesRenderer } from './ui/FeaturesRenderer'
 import { HelpManager } from './ui/HelpManager'
 import { TooltipManager } from './ui/TooltipManager'
+import { FullscreenModal } from './ui/FullscreenModal'
+import { CanvasContextMenu } from './ui/CanvasContextMenu'
 import {
   BrisqueWorkerSuccess,
   BrisqueWorkerError,
@@ -14,6 +16,7 @@ import {
   ChartKind,
   ChartYMode,
   MapKind,
+  FullscreenMode,
   MAP_VIEW_META,
   PAIRWISE_CHART_META,
   readGgdFit,
@@ -44,6 +47,21 @@ export interface UiElements {
   qaTabsContainer: HTMLDivElement
   tabBtns: NodeListOf<HTMLElement>
   tabContents: NodeListOf<HTMLElement>
+  fullscreenOpenBtns: NodeListOf<HTMLButtonElement>
+  fullscreenModal: HTMLDivElement
+  fullscreenTitle: HTMLSpanElement
+  fullscreenZoomInfo: HTMLSpanElement
+  fullscreenCloseBtn: HTMLButtonElement
+  fullscreenResetBtn: HTMLButtonElement
+  fullscreenMapViewport: HTMLDivElement
+  fullscreenMapCanvas: HTMLCanvasElement
+  fullscreenChartContainer: HTMLDivElement
+  fullscreenChartCanvas: HTMLCanvasElement
+  fullscreenMapPanel: HTMLDivElement
+  fullscreenChartPanel: HTMLDivElement
+  fsMapTypeBtns: NodeListOf<HTMLButtonElement>
+  fsChartTypeBtns: NodeListOf<HTMLButtonElement>
+  fsChartYModeBtns: NodeListOf<HTMLButtonElement>
 }
 
 /**
@@ -55,8 +73,10 @@ export class AppController {
   private brisqueWorker: Worker
   private mapRenderer = new MapRenderer()
   private chartManager: ChartManager
+  private fullscreenChartManager: ChartManager
   private featuresRenderer: FeaturesRenderer
   private helpManager: HelpManager
+  private fullscreenModal: FullscreenModal
   private viewport!: ViewportManager
   private selection!: SelectionManager
 
@@ -75,9 +95,44 @@ export class AppController {
     this.ctx = this.els.previewCanvas.getContext('2d', { willReadFrequently: true })!
     this.ctx.imageSmoothingEnabled = false
     this.chartManager = new ChartManager(this.els.chartCanvas)
+    this.fullscreenChartManager = new ChartManager(this.els.fullscreenChartCanvas)
     this.featuresRenderer = new FeaturesRenderer('tab-features')
     this.helpManager = new HelpManager('academic-help-container')
     new TooltipManager()
+
+    this.fullscreenModal = new FullscreenModal(
+      {
+        modal: this.els.fullscreenModal,
+        title: this.els.fullscreenTitle,
+        zoomInfo: this.els.fullscreenZoomInfo,
+        closeBtn: this.els.fullscreenCloseBtn,
+        resetBtn: this.els.fullscreenResetBtn,
+        mapViewport: this.els.fullscreenMapViewport,
+        mapCanvas: this.els.fullscreenMapCanvas,
+        chartContainer: this.els.fullscreenChartContainer,
+        chartCanvas: this.els.fullscreenChartCanvas,
+        mapPanel: this.els.fullscreenMapPanel,
+        chartPanel: this.els.fullscreenChartPanel,
+        mapTypeBtns: this.els.fsMapTypeBtns,
+        chartTypeBtns: this.els.fsChartTypeBtns,
+        chartYModeBtns: this.els.fsChartYModeBtns
+      },
+      {
+        onRenderMap: canvas => this.renderMapToCanvas(canvas),
+        onRenderChart: canvas => this.renderChartToCanvas(canvas),
+        onMapKindChange: mapKind => this.setActiveMapKind(mapKind as MapKind),
+        onChartKindChange: chartKind => this.setActiveChartKind(chartKind as ChartKind),
+        onChartYModeChange: yMode => this.setActiveChartYMode(yMode as ChartYMode),
+        getActiveMapKind: () => this.activeMapKind,
+        getActiveChartKind: () => this.activeChartKind,
+        getActiveChartYMode: () => this.activeChartYMode,
+        getMapTitle: () => MAP_VIEW_META[this.activeMapKind].title,
+        getChartTitle: () =>
+          this.activeChartKind === 'mscn'
+            ? 'Распределение MSCN'
+            : PAIRWISE_CHART_META[this.activeChartKind].xLabel
+      }
+    )
 
     this.brisqueWorker = new Worker(new URL('./core/brisque/brisque.worker.ts', import.meta.url), {
       type: 'module'
@@ -87,8 +142,11 @@ export class AppController {
     this.initTabs()
     this.initMapControls()
     this.initChartControls()
+    this.initFullscreenControls()
+    this.initCanvasExportMenu()
     this.initControls()
     this.helpManager.updateContext('empty')
+    this.updateFullscreenButtons()
   }
 
   private initWorker(): void {
@@ -134,15 +192,30 @@ export class AppController {
     this.renderActiveMap()
     this.renderActiveChart()
     this.updateHelpContextForActiveTab()
+    this.updateFullscreenButtons()
+  }
+
+  private updateFullscreenButtons(): void {
+    const enabled = this.lastPipelineData !== null
+    this.els.fullscreenOpenBtns.forEach(btn => {
+      btn.disabled = !enabled
+    })
   }
 
   /** Перерисовка активной карты из кэша (без повторного пайплайна) */
   private renderActiveMap(): void {
+    this.renderMapToCanvas(this.els.mapCanvas)
+  }
+
+  private renderMapToCanvas(canvas: HTMLCanvasElement): void {
     const data = this.lastPipelineData
     if (!data) return
 
-    const ctx = this.els.mapCanvas.getContext('2d')
+    const ctx = canvas.getContext('2d')
     if (!ctx) return
+
+    canvas.width = data.width
+    canvas.height = data.height
 
     const { width, height } = data
     let imageData: ImageData | null = null
@@ -184,35 +257,46 @@ export class AppController {
     this.els.mapTitle.appendChild(hint)
   }
 
+  private setActiveMapKind(mapKind: MapKind): void {
+    this.activeMapKind = mapKind
+    this.els.mapTypeBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.map === mapKind)
+    })
+    this.updateMapTitle()
+    this.renderActiveMap()
+  }
+
   private initMapControls(): void {
     this.els.mapTypeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const mapKind = btn.dataset.map as MapKind | undefined
         if (!mapKind) return
-
-        this.els.mapTypeBtns.forEach(b => b.classList.remove('active'))
-        btn.classList.add('active')
-        this.activeMapKind = mapKind
-        this.updateMapTitle()
-        this.renderActiveMap()
+        this.setActiveMapKind(mapKind)
       })
     })
   }
 
   /** Перерисовка активного графика из кэша */
   private renderActiveChart(): void {
+    this.renderChartToCanvas(this.els.chartCanvas)
+  }
+
+  private renderChartToCanvas(canvas: HTMLCanvasElement): void {
     const data = this.lastPipelineData
     if (!data) return
 
+    const manager = canvas === this.els.fullscreenChartCanvas
+      ? this.fullscreenChartManager
+      : this.chartManager
     const yMode = this.activeChartYMode
 
     if (this.activeChartKind === 'mscn') {
-      this.chartManager.drawMscnHistogram(data.mscn, readGgdFit(data.features36, 0), yMode)
+      manager.drawMscnHistogram(data.mscn, readGgdFit(data.features36, 0), yMode)
       return
     }
 
     const meta = PAIRWISE_CHART_META[this.activeChartKind]
-    this.chartManager.drawPairwiseHistogram(
+    manager.drawPairwiseHistogram(
       data.pairwise[this.activeChartKind],
       meta.xLabel,
       readAggdFit(data.features36, meta.featureOffset),
@@ -220,16 +304,28 @@ export class AppController {
     )
   }
 
+  private setActiveChartKind(chartKind: ChartKind): void {
+    this.activeChartKind = chartKind
+    this.els.chartTypeBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.chart === chartKind)
+    })
+    this.renderActiveChart()
+  }
+
+  private setActiveChartYMode(yMode: ChartYMode): void {
+    this.activeChartYMode = yMode
+    this.els.chartYModeBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.yMode === yMode)
+    })
+    this.renderActiveChart()
+  }
+
   private initChartControls(): void {
     this.els.chartTypeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const chartKind = btn.dataset.chart as ChartKind | undefined
         if (!chartKind) return
-
-        this.els.chartTypeBtns.forEach(b => b.classList.remove('active'))
-        btn.classList.add('active')
-        this.activeChartKind = chartKind
-        this.renderActiveChart()
+        this.setActiveChartKind(chartKind)
       })
     })
 
@@ -237,13 +333,69 @@ export class AppController {
       btn.addEventListener('click', () => {
         const yMode = btn.dataset.yMode as ChartYMode | undefined
         if (!yMode) return
-
-        this.els.chartYModeBtns.forEach(b => b.classList.remove('active'))
-        btn.classList.add('active')
-        this.activeChartYMode = yMode
-        this.renderActiveChart()
+        this.setActiveChartYMode(yMode)
       })
     })
+  }
+
+  private initFullscreenControls(): void {
+    this.els.fullscreenOpenBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!this.lastPipelineData) return
+        const mode = btn.dataset.fullscreen as FullscreenMode | undefined
+        if (mode) this.fullscreenModal.open(mode)
+      })
+    })
+
+    window.addEventListener('resize', () => {
+      this.fullscreenModal.onResize()
+    })
+  }
+
+  private initCanvasExportMenu(): void {
+    const menu = new CanvasContextMenu()
+
+    const attach = (
+      container: HTMLElement | null,
+      resolve: () => { canvas: HTMLCanvasElement; filename: string } | null
+    ) => {
+      if (container) menu.attach(container, resolve)
+    }
+
+    attach(this.els.previewCanvas.parentElement, () => this.exportTarget(this.els.previewCanvas, 'crop'))
+    attach(this.els.mapCanvas.parentElement, () => this.exportTarget(this.els.mapCanvas, 'map'))
+    attach(this.els.chartCanvas.parentElement, () => this.exportTarget(this.els.chartCanvas, 'chart'))
+    attach(this.els.fullscreenMapViewport, () =>
+      this.exportTarget(this.els.fullscreenMapCanvas, 'map')
+    )
+    attach(this.els.fullscreenChartContainer, () =>
+      this.exportTarget(this.els.fullscreenChartCanvas, 'chart')
+    )
+  }
+
+  private exportTarget(
+    canvas: HTMLCanvasElement,
+    kind: 'crop' | 'map' | 'chart'
+  ): { canvas: HTMLCanvasElement; filename: string } | null {
+    if (canvas.width <= 0 || canvas.height <= 0) return null
+    if (kind !== 'crop' && !this.lastPipelineData) return null
+
+    const { width, height } = canvas
+    let filename: string
+
+    switch (kind) {
+      case 'crop':
+        filename = `brisque-crop-${width}x${height}.png`
+        break
+      case 'map':
+        filename = `brisque-map-${this.activeMapKind}-${width}x${height}.png`
+        break
+      case 'chart':
+        filename = `brisque-chart-${this.activeChartKind}-${this.activeChartYMode}.png`
+        break
+    }
+
+    return { canvas, filename }
   }
 
   private initTabs(): void {
@@ -302,6 +454,7 @@ export class AppController {
     new SidebarController(this.els.sidebar, this.els.resizer, () => {
       this.renderActiveMap()
       this.renderActiveChart()
+      this.fullscreenModal.onResize()
     })
   }
 
@@ -315,6 +468,7 @@ export class AppController {
       this.els.qaTabsContainer.style.display = 'none'
       this.lastPipelineData = null
       this.helpManager.updateContext('empty')
+      this.updateFullscreenButtons()
       return
     }
 
