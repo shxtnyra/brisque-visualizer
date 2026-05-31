@@ -1,3 +1,14 @@
+import { FeaturesExtractor } from '../core/brisque/FeaturesExtractor'
+import {
+  AggdFitParams,
+  ChartYMode,
+  GgdFitParams,
+  REFERENCE_GGD_ALPHA
+} from '../types'
+
+// ---------------------------------------------------------------------------
+// Визуальная тема графика (цвета, шрифты). Не влияет на расчёты BRISQUE.
+// ---------------------------------------------------------------------------
 interface ChartTheme {
   backgroundColor: string
   gridColor: string
@@ -6,6 +17,9 @@ interface ChartTheme {
   barGradientStart: string
   barGradientEnd: string
   trendLineColor: string
+  ggdReferenceColor: string
+  ggdFitColor: string
+  aggdFitColor: string
   font: string
 }
 
@@ -17,12 +31,49 @@ const THEME: ChartTheme = {
   barGradientStart: 'rgba(0, 255, 170, 0.4)',
   barGradientEnd: 'rgba(0, 255, 170, 0.01)',
   trendLineColor: '#00ffaa',
-  font: '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+  ggdReferenceColor: 'rgba(100, 200, 255, 0.9)',
+  ggdFitColor: 'rgba(255, 180, 60, 0.95)',
+  aggdFitColor: 'rgba(255, 180, 60, 0.95)',
+  font: '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+}
+
+// ---------------------------------------------------------------------------
+// Параметры гистограммы по оси X.
+// Диапазон [-3, 3] покрывает типичные значения MSCN и попарных произведений;
+// значения за пределами попадают в крайние бины (намеренное усечение хвостов).
+// ---------------------------------------------------------------------------
+const BINS_COUNT = 80
+const MIN_VAL = -3.0
+const MAX_VAL = 3.0
+const RANGE = MAX_VAL - MIN_VAL
+const BIN_WIDTH = RANGE / BINS_COUNT
+
+interface ChartLayout {
+  barWidth: number
+  padding: { top: number; left: number }
+  graphWidth: number
+  graphHeight: number
+  maxDensity: number
+}
+
+/** Элемент легенды: прямоугольник (столбцы) или линия (кривая / маркер) */
+interface HistogramLegendItem {
+  type: 'bar' | 'line' | 'dashed-line'
+  color: string
+  label: string
+  lineWidth?: number
+  dash?: number[]
 }
 
 /**
- * Менеджер отрисовки аналитических графиков (гистограмма MSCN и вспомогательные
- * визуализации). Работает напрямую с Canvas 2D и адаптирует разрешение под DPR.
+ * ChartManager — отрисовка гистограмм распределений BRISQUE на HTML Canvas.
+ *
+ * Не считает признаки заново: получает сырые массивы пикселей и параметры
+ * подгонки (α, σ², η) из features36, которые уже вычислил пайплайн.
+ *
+ * Два публичных входа:
+ *  - drawMscnHistogram   — распределение коэффициентов MSCN + кривые GGD
+ *  - drawPairwiseHistogram — попарные произведения + кривая AGGD
  */
 export class ChartManager {
   private ctx: CanvasRenderingContext2D
@@ -31,73 +82,219 @@ export class ChartManager {
     this.ctx = canvas.getContext('2d', { alpha: false })!
   }
 
-  private stddev(data: Float32Array): number {
-    if (data.length === 0) return 1
-    let mean = 0
-    for (let i = 0; i < data.length; i++) mean += data[i]
-    mean = mean / data.length
-    let s = 0
-    for (let i = 0; i < data.length; i++) {
-      const d = data[i] - mean
-      s += d * d
-    }
-    return Math.sqrt(s / data.length)
+  /** Форматирование подписи деления оси Y в зависимости от режима и величины */
+  private formatAxisValue(value: number, yMode: ChartYMode): string {
+    if (value === 0) return '0'
+    if (yMode === 'peak') return value.toFixed(2)
+    if (value >= 1) return value.toFixed(1)
+    if (value >= 0.1) return value.toFixed(2)
+    return value.toFixed(3)
   }
 
-  // Быстрая свёртка по бинам с гауссовым ядром.
-  private smoothBins(bins: Float32Array, sigmaBins = 1): Float32Array {
-    const n = bins.length
-    const out = new Float32Array(n)
-    const radius = Math.min(n, Math.ceil(sigmaBins * 3))
-    // Предвычислим ядро
-    const kernel: number[] = []
-    let ksum = 0
-    for (let i = -radius; i <= radius; i++) {
-      const v = Math.exp((-0.5 * (i * i)) / (sigmaBins * sigmaBins))
-      kernel.push(v)
-      ksum += v
-    }
-    for (let i = 0; i < kernel.length; i++) kernel[i] = kernel[i] / ksum
-
-    for (let i = 0; i < n; i++) {
-      let s = 0
-      for (let k = -radius; k <= radius; k++) {
-        const idx = i + k
-        if (idx < 0 || idx >= n) continue
-        s += bins[idx] * kernel[k + radius]
-      }
-      out[i] = s
-    }
-    return out
+  /** Название оси Y: PDF — настоящая плотность; peak — относительная высота */
+  private yAxisLabel(yMode: ChartYMode): string {
+    return yMode === 'pdf' ? 'Плотность вероятности' : 'Относительная амплитуда'
   }
 
-  private gaussianPdf(x: number, mean: number, sigma: number): number {
-    const inv = 1 / (sigma * Math.sqrt(2 * Math.PI))
-    const u = (x - mean) / sigma
-    return inv * Math.exp(-0.5 * u * u)
+  /** Равномерные деления оси Y от 0 до maxDensity (обычно 5 меток) */
+  private computeYTicks(max: number, count = 5): number[] {
+    if (max <= 0) return [0]
+    const ticks: number[] = []
+    for (let i = 0; i < count; i++) {
+      ticks.push((max * i) / (count - 1))
+    }
+    return ticks
   }
 
   /**
-   * Главный метод отрисовки гистограммы на основе сырых данных MSCN.
-   * @param rawMscn Массив коэффициентов MSCN.
-   * @param opts Опции отображения (сглаживание, гауссова кривая, столбцы).
+   * Шаг 1 статистики: каждый пиксель попадает в один из 80 бинов по значению.
+   * Возвращает сырые счётчики (целые числа «сколько пикселей в бине»).
+   * Используются все элементы массива — как в fitGgd/fitAggd пайплайна.
    */
-  public drawMscnHistogram(
-    rawMscn: Float32Array,
-    opts?: { showSmoothed?: boolean; showGaussian?: boolean; showBars?: boolean }
+  private buildRawBins(values: Float32Array): Float32Array {
+    const bins = new Float32Array(BINS_COUNT)
+
+    for (let i = 0; i < values.length; i++) {
+      const val = values[i]
+      let binIdx = Math.floor((val - MIN_VAL) / BIN_WIDTH)
+      if (binIdx < 0) binIdx = 0
+      if (binIdx >= BINS_COUNT) binIdx = BINS_COUNT - 1
+      bins[binIdx]++
+    }
+
+    return bins
+  }
+
+  /**
+   * Шаг 2 статистики: перевод сырых счётчиков в высоту столбцов графика.
+   *
+   * pdf:     count / (N · Δx) — оценка плотности вероятности (интеграл ≈ 1)
+   * peak:    count / max(count) — самый высокий столбец = 1 (удобно сравнивать форму)
+   */
+  private normalizeBins(
+    rawBins: Float32Array,
+    sampleCount: number,
+    yMode: ChartYMode
+  ): Float32Array {
+    const bins = new Float32Array(BINS_COUNT)
+
+    if (yMode === 'pdf') {
+      for (let b = 0; b < BINS_COUNT; b++) {
+        bins[b] = sampleCount > 0 ? rawBins[b] / (sampleCount * BIN_WIDTH) : 0
+      }
+      return bins
+    }
+
+    let maxCount = 0
+    for (let b = 0; b < BINS_COUNT; b++) {
+      if (rawBins[b] > maxCount) maxCount = rawBins[b]
+    }
+    const denom = maxCount > 0 ? maxCount : 1
+    for (let b = 0; b < BINS_COUNT; b++) {
+      bins[b] = rawBins[b] / denom
+    }
+    return bins
+  }
+
+  /**
+   * Вычисляет 80 точек теоретической кривой (GGD или AGGD) в центрах бинов.
+   * В режиме peak кривая дополнительно делится на свой максимум (= 1).
+   */
+  private sampleCurveValues(sampleFn: (center: number) => number, yMode: ChartYMode): Float32Array {
+    const values = new Float32Array(BINS_COUNT)
+    for (let b = 0; b < BINS_COUNT; b++) {
+      const center = MIN_VAL + (b + 0.5) * BIN_WIDTH
+      values[b] = sampleFn(center)
+    }
+
+    if (yMode === 'pdf') return values
+
+    let maxVal = 0
+    for (let b = 0; b < BINS_COUNT; b++) {
+      if (values[b] > maxVal) maxVal = values[b]
+    }
+    const denom = maxVal > 0 ? maxVal : 1
+    for (let b = 0; b < BINS_COUNT; b++) {
+      values[b] /= denom
+    }
+    return values
+  }
+
+  /** Общий масштаб оси Y: максимум среди столбцов и всех кривых на одном графике */
+  private computeMaxScale(bins: Float32Array, curves: Float32Array[]): number {
+    let maxDensity = 0
+    for (let b = 0; b < BINS_COUNT; b++) {
+      if (bins[b] > maxDensity) maxDensity = bins[b]
+    }
+    for (const curve of curves) {
+      for (let b = 0; b < BINS_COUNT; b++) {
+        if (curve[b] > maxDensity) maxDensity = curve[b]
+      }
+    }
+    return maxDensity > 0 ? maxDensity : 1
+  }
+
+  /** Рисует одну линию поверх гистограммы (эталон, подгонка или огибающая) */
+  private drawCurveSamples(
+    layout: ChartLayout,
+    samples: Float32Array,
+    color: string,
+    lineWidth: number,
+    dash: number[]
+  ): void {
+    const { barWidth, padding, graphHeight, maxDensity } = layout
+    this.ctx.strokeStyle = color
+    this.ctx.lineWidth = lineWidth
+    this.ctx.setLineDash(dash)
+    this.ctx.beginPath()
+    for (let b = 0; b < BINS_COUNT; b++) {
+      const x = padding.left + b * barWidth + barWidth / 2
+      const y = padding.top + graphHeight - (samples[b] / maxDensity) * graphHeight
+      if (b === 0) this.ctx.moveTo(x, y)
+      else this.ctx.lineTo(x, y)
+    }
+    this.ctx.stroke()
+    this.ctx.setLineDash([])
+  }
+
+  /** Вертикальный пунктир: x = 0 для MSCN, x = η для попарных произведений */
+  private drawVerticalMarker(layout: ChartLayout, value: number): void {
+    const { padding, graphWidth, graphHeight } = layout
+    const pct = (value - MIN_VAL) / RANGE
+    const x = padding.left + pct * graphWidth
+
+    this.ctx.strokeStyle = THEME.axisColor
+    this.ctx.lineWidth = 1
+    this.ctx.setLineDash([4, 4])
+    this.ctx.beginPath()
+    this.ctx.moveTo(x, padding.top)
+    this.ctx.lineTo(x, padding.top + graphHeight)
+    this.ctx.stroke()
+    this.ctx.setLineDash([])
+  }
+
+  /**
+   * Легенда в правой колонке за пределами сетки графика.
+   * Текст выровнен по правому краю canvas, образцы — слева от подписи.
+   */
+  private drawLegend(
+    layout: ChartLayout,
+    gradient: CanvasGradient,
+    items: HistogramLegendItem[]
+  ): void {
+    const { padding, graphWidth } = layout
+    const legendX = padding.left + graphWidth - 6
+    let legendY = padding.top + 8
+    const lineH = 12
+    const gap = 8
+
+    this.ctx.font = '12px sans-serif'
+    this.ctx.textAlign = 'right'
+    this.ctx.textBaseline = 'middle'
+
+    for (const item of items) {
+      if (item.type === 'bar') {
+        this.ctx.fillStyle = gradient
+        this.ctx.fillRect(legendX- 8, legendY, 12, lineH)
+      } else {
+        this.ctx.strokeStyle = item.color
+        this.ctx.lineWidth = item.lineWidth ?? 1.5
+        this.ctx.setLineDash(item.dash ?? [])
+        this.ctx.beginPath()
+        this.ctx.moveTo(legendX, legendY + lineH / 2)
+        this.ctx.lineTo(legendX - 8, legendY + lineH / 2)
+        this.ctx.stroke()
+        this.ctx.setLineDash([])
+      }
+
+      this.ctx.fillStyle = THEME.textColor
+      this.ctx.fillText(item.label, legendX - 12, legendY + lineH / 2)
+      legendY += lineH + gap
+    }
+  }
+
+  /**
+   * Ядро отрисовки: один кадр гистограммы с сеткой, осями, столбцами и легендой.
+   * drawCurves — callback, который рисует поверх столбцов линии GGD/AGGD.
+   */
+  private drawHistogram(
+    bins: Float32Array,
+    maxDensity: number,
+    xLabel: string,
+    yMode: ChartYMode,
+    legendItems: HistogramLegendItem[],
+    markerValue: number | null,
+    drawCurves: (layout: ChartLayout) => void
   ): void {
     const parent = this.canvas.parentElement
     if (!parent) return
 
-    // Вычисляем реальные размеры контейнера в DOM
+    // Подгонка canvas под размер контейнера и DPR (чёткость на Retina)
     const rect = parent.getBoundingClientRect()
     const dpr = window.devicePixelRatio || 1
 
-    // Адаптируем внутреннее разрешение Canvas под DPI дисплея
     this.canvas.width = rect.width * dpr
     this.canvas.height = rect.height * dpr
-
-    // Задаем физические размеры через CSS
     this.canvas.style.width = `${rect.width}px`
     this.canvas.style.height = `${rect.height}px`
 
@@ -109,213 +306,219 @@ export class ChartManager {
     this.ctx.imageSmoothingEnabled = true
     this.ctx.imageSmoothingQuality = 'high'
 
-    // Очистка холста
     this.ctx.fillStyle = THEME.backgroundColor
     this.ctx.fillRect(0, 0, width, height)
 
-    if (rawMscn.length === 0) {
-      this.ctx.restore()
-      return
-    }
-
-    // Параметры разбиения (Биннинг)
-    const BINS_COUNT = 600
-    const bins = new Float32Array(BINS_COUNT)
-    const MIN_VAL = -3.0
-    const MAX_VAL = 3.0
-    const RANGE = MAX_VAL - MIN_VAL
-    const BIN_WIDTH = RANGE / BINS_COUNT
-
-    // Распределяем пиксели по "корзинам" (bins)
-    for (let i = 0; i < rawMscn.length; i++) {
-      const val = rawMscn[i]
-      let binIdx = Math.floor((val - MIN_VAL) / BIN_WIDTH)
-      if (binIdx < 0) binIdx = 0
-      if (binIdx >= BINS_COUNT) binIdx = BINS_COUNT - 1
-      bins[binIdx]++
-    }
-
-    // Нормируем значения гистограммы (переходим к плотности/частоте)
-    let maxBinValue = 0
-    for (let b = 0; b < BINS_COUNT; b++) {
-      bins[b] = bins[b] / rawMscn.length
-      if (bins[b] > maxBinValue) maxBinValue = bins[b]
-    }
-    if (maxBinValue === 0) maxBinValue = 1
-
-    // Геометрия отступов рабочей области графика
-    const padding = { top: 15, right: 15, bottom: 20, left: 15 }
+    const padding = { top: 15, right: 15, bottom: 38, left: 52 }
     const graphWidth = width - padding.left - padding.right
     const graphHeight = height - padding.top - padding.bottom
+    const barWidth = graphWidth / BINS_COUNT
+    const layout: ChartLayout = { barWidth, padding, graphWidth, graphHeight, maxDensity }
 
-    // Рендеринг вертикальной координатной сетки
+    // --- Сетка и подписи оси Y ---
     this.ctx.strokeStyle = THEME.gridColor
     this.ctx.lineWidth = 1
     this.ctx.fillStyle = THEME.textColor
     this.ctx.font = THEME.font
+
+    const yTicks = this.computeYTicks(maxDensity)
+    this.ctx.textAlign = 'right'
+    this.ctx.textBaseline = 'middle'
+    yTicks.forEach(tick => {
+      const y = padding.top + graphHeight - (tick / maxDensity) * graphHeight
+      this.ctx.beginPath()
+      this.ctx.moveTo(padding.left, y)
+      this.ctx.lineTo(padding.left + graphWidth, y)
+      this.ctx.stroke()
+      this.ctx.fillText(this.formatAxisValue(tick, yMode), padding.left - 6, y)
+    })
+
+    // --- Сетка и подписи оси X ---
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'top'
-
-    const ticks = [-3, -2, -1, 0, 1, 2, 3]
-    ticks.forEach(tick => {
+    const xTicks = [-3, -2, -1, 0, 1, 2, 3]
+    xTicks.forEach(tick => {
       const pct = (tick - MIN_VAL) / RANGE
       const x = padding.left + pct * graphWidth
-
       this.ctx.beginPath()
       this.ctx.moveTo(x, padding.top)
       this.ctx.lineTo(x, padding.top + graphHeight)
       this.ctx.stroke()
-
       this.ctx.fillText(tick.toString(), x, padding.top + graphHeight + 4)
     })
+    this.ctx.fillText(xLabel, padding.left + graphWidth / 2, padding.top + graphHeight + 20)
 
-    // Отрисовка столбцов гистограммы (Заливка градиентом)
-    const showBars = opts?.showBars ?? true
-    const barWidth = graphWidth / BINS_COUNT
+    // --- Столбцы гистограммы (зелёный градиент) ---
     const gradient = this.ctx.createLinearGradient(0, padding.top, 0, padding.top + graphHeight)
     gradient.addColorStop(0, THEME.barGradientStart)
     gradient.addColorStop(1, THEME.barGradientEnd)
-    if (showBars) {
-      this.ctx.fillStyle = gradient
-      for (let b = 0; b < BINS_COUNT; b++) {
-        const hRatio = bins[b] / maxBinValue
-        const bHeight = hRatio * graphHeight
-        const x = padding.left + b * barWidth
-        const y = padding.top + graphHeight - bHeight
 
-        // Добавка +0.5 убирает субпиксельные дыры между барами холста
-        this.ctx.fillRect(x, y, barWidth + 0.5, bHeight)
-      }
+    this.ctx.fillStyle = gradient
+    for (let b = 0; b < BINS_COUNT; b++) {
+      const hRatio = bins[b] / maxDensity
+      const bHeight = hRatio * graphHeight
+      const x = padding.left + b * barWidth
+      const y = padding.top + graphHeight - bHeight
+      // +0.5 px убирает тонкие щели между соседними столбцами
+      this.ctx.fillRect(x, y, barWidth + 0.5, bHeight)
     }
 
-    // Отрисовка непрерывного графика (Линия тренда распределения через центры бинов)
+    // --- Огибающая: ломаная через вершины столбцов (та же высота, что у bars) ---
     this.ctx.strokeStyle = THEME.trendLineColor
     this.ctx.lineWidth = 1.5
     this.ctx.beginPath()
     for (let b = 0; b < BINS_COUNT; b++) {
-      const hRatio = bins[b] / maxBinValue
+      const hRatio = bins[b] / maxDensity
       const x = padding.left + b * barWidth + barWidth / 2
       const y = padding.top + graphHeight - hRatio * graphHeight
-
       if (b === 0) this.ctx.moveTo(x, y)
       else this.ctx.lineTo(x, y)
     }
     this.ctx.stroke()
 
-    // Смягчённая линия через бины (быстрая альтернатива KDE)
-    const showSmoothed = opts?.showSmoothed ?? true
-    if (showSmoothed) {
-      const sigmaBins = 1.0
-      const smooth = this.smoothBins(bins, sigmaBins)
-      this.ctx.strokeStyle = 'rgba(255,200,60,0.95)'
-      this.ctx.lineWidth = 1.6
-      this.ctx.beginPath()
-      for (let b = 0; b < BINS_COUNT; b++) {
-        const hRatio = smooth[b] / maxBinValue
-        const x = padding.left + b * barWidth + barWidth / 2
-        const y = padding.top + graphHeight - hRatio * graphHeight
-        if (b === 0) this.ctx.moveTo(x, y)
-        else this.ctx.lineTo(x, y)
-      }
-      this.ctx.stroke()
+    // --- Теоретические кривые GGD / AGGD (передаются через callback) ---
+    drawCurves(layout)
+
+    if (markerValue !== null) {
+      this.drawVerticalMarker(layout, markerValue)
     }
 
-    // Эталонная гауссова кривая
-    const showGaussian = opts?.showGaussian ?? true
-    if (showGaussian) {
-      const mean = 0
-      const sigma = this.stddev(rawMscn) || 1
-      // Вычисляем pdf по центрам бинов
-      const pdf: Float32Array = new Float32Array(BINS_COUNT)
-      let maxPdf = 0
-      for (let b = 0; b < BINS_COUNT; b++) {
-        const center = MIN_VAL + (b + 0.5) * BIN_WIDTH
-        pdf[b] = this.gaussianPdf(center, mean, sigma)
-        if (pdf[b] > maxPdf) maxPdf = pdf[b]
-      }
-      const scale = maxPdf > 0 ? maxBinValue / maxPdf : 1
-      this.ctx.strokeStyle = 'rgba(100,200,255,0.9)'
-      this.ctx.lineWidth = 1.2
-      this.ctx.setLineDash([6, 4])
-      this.ctx.beginPath()
-      for (let b = 0; b < BINS_COUNT; b++) {
-        const val = pdf[b] * scale
-        const x = padding.left + b * barWidth + barWidth / 2
-        const y = padding.top + graphHeight - (val / maxBinValue) * graphHeight
-        if (b === 0) this.ctx.moveTo(x, y)
-        else this.ctx.lineTo(x, y)
-      }
-      this.ctx.stroke()
-      this.ctx.setLineDash([])
-    }
-
-    // Отрисовка центральной оси симметрии (Математический ноль)
-    const zeroPct = (0 - MIN_VAL) / RANGE
-    const zeroX = padding.left + zeroPct * graphWidth
-
-    this.ctx.strokeStyle = THEME.axisColor
-    this.ctx.lineWidth = 1
-    this.ctx.setLineDash([4, 4])
-    this.ctx.beginPath()
-    this.ctx.moveTo(zeroX, padding.top)
-    this.ctx.lineTo(zeroX, padding.top + graphHeight)
-    this.ctx.stroke()
-    this.ctx.setLineDash([])
-
-    // Легенда и подписи осей
-    // Y-axis label
+    // --- Подпись оси Y (повёрнута на 90°) ---
     this.ctx.save()
     this.ctx.fillStyle = THEME.textColor
     this.ctx.font = THEME.font
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
-    this.ctx.translate(8, padding.top + graphHeight / 2)
+    this.ctx.translate(14, padding.top + graphHeight / 2)
     this.ctx.rotate(-Math.PI / 2)
-    this.ctx.fillText('Probability density', 0, 0)
+    this.ctx.fillText(this.yAxisLabel(yMode), 0, 0)
     this.ctx.restore()
 
-    // Легенда (в верхнем правом углу)
-    const legendX = padding.left + graphWidth - 6
-    const legendY = padding.top + 8
-    const lineH = 12
-    const gap = 6
-    this.ctx.fillStyle = THEME.textColor
-    this.ctx.font = '10px sans-serif'
-    this.ctx.textAlign = 'right'
-    // Bars
-    if (showBars) {
-      this.ctx.fillStyle = gradient
-      this.ctx.fillRect(legendX - 40, legendY, 12, lineH)
-      this.ctx.fillStyle = THEME.textColor
-      this.ctx.fillText('Histogram', legendX - 46, legendY + lineH / 2)
-    }
-    // Smoothed
-    if (showSmoothed) {
-      const yOff = legendY + (showBars ? lineH + gap : 0)
-      this.ctx.strokeStyle = 'rgba(255,200,60,0.95)'
-      this.ctx.lineWidth = 2
-      this.ctx.beginPath()
-      this.ctx.moveTo(legendX - 40, yOff + lineH / 2)
-      this.ctx.lineTo(legendX - 28, yOff + lineH / 2)
-      this.ctx.stroke()
-      this.ctx.fillStyle = THEME.textColor
-      this.ctx.fillText('Smoothed trend', legendX - 46, yOff + lineH / 2)
-    }
-    // Gaussian
-    if (showGaussian) {
-      const yOff = legendY + (showBars ? lineH + gap : 0) + (showSmoothed ? lineH + gap : 0)
-      this.ctx.strokeStyle = 'rgba(100,200,255,0.9)'
-      this.ctx.lineWidth = 1.2
-      this.ctx.setLineDash([6, 4])
-      this.ctx.beginPath()
-      this.ctx.moveTo(legendX - 40, yOff + lineH / 2)
-      this.ctx.lineTo(legendX - 28, yOff + lineH / 2)
-      this.ctx.stroke()
-      this.ctx.setLineDash([])
-      this.ctx.fillStyle = THEME.textColor
-      this.ctx.fillText('Gaussian fit', legendX - 46, yOff + lineH / 2)
-    }
-
+    this.drawLegend(layout, gradient, legendItems)
     this.ctx.restore()
+  }
+
+  /**
+   * График распределения MSCN.
+   *
+   * Вход:
+   *  - rawMscn — все коэффициенты MSCN выделенной области (один пиксель = одно число)
+   *  - fit — α и σ² из features36 (та же подгонка, что в таблице признаков)
+   *  - yMode — pdf или peak
+   *
+   * На графике:
+   *  - столбцы — реальное распределение пикселей
+   *  - синяя пунктирная — эталон GGD с α=2 (идеальное натуральное фото)
+   *  - оранжевая — GGD с подогнанным α
+   *  - вертикальная линия x=0 — центр симметрии
+   */
+  public drawMscnHistogram(
+    rawMscn: Float32Array,
+    fit: GgdFitParams,
+    yMode: ChartYMode = 'pdf'
+  ): void {
+    if (rawMscn.length === 0) return
+
+    const rawBins = this.buildRawBins(rawMscn)
+    const bins = this.normalizeBins(rawBins, rawMscn.length, yMode)
+    const { alpha: fittedAlpha, variance: fittedVariance } = fit
+
+    const refCurve = this.sampleCurveValues(
+      center => FeaturesExtractor.ggdPdf(center, REFERENCE_GGD_ALPHA, fittedVariance),
+      yMode
+    )
+    const fitCurve = this.sampleCurveValues(
+      center => FeaturesExtractor.ggdPdf(center, fittedAlpha, fittedVariance),
+      yMode
+    )
+    const maxDensity = this.computeMaxScale(bins, [refCurve, fitCurve])
+
+    this.drawHistogram(
+      bins,
+      maxDensity,
+      'Коэффициент MSCN',
+      yMode,
+      [
+        { type: 'bar', color: '', label: 'Гистограмма' },
+        { type: 'line', color: THEME.trendLineColor, label: 'Огибающая', lineWidth: 1.5 },
+        {
+          type: 'dashed-line',
+          color: THEME.ggdReferenceColor,
+          label: `GGD эталон (α=${REFERENCE_GGD_ALPHA})`,
+          lineWidth: 1.2,
+          dash: [6, 4]
+        },
+        {
+          type: 'line',
+          color: THEME.ggdFitColor,
+          label: `GGD подгонка (α=${fittedAlpha.toFixed(2)})`,
+          lineWidth: 1.5
+        }
+      ],
+      0,
+      layout => {
+        this.drawCurveSamples(layout, refCurve, THEME.ggdReferenceColor, 1.2, [6, 4])
+        this.drawCurveSamples(layout, fitCurve, THEME.ggdFitColor, 1.5, [])
+      }
+    )
+  }
+
+  /**
+   * График распределения попарных произведений MSCN (H, V, D1, D2).
+   *
+   * Вход:
+   *  - data — карта произведений соседних MSCN-пикселей
+   *  - fit — параметры AGGD (α, η, σ²_L, σ²_R) из features36
+   *
+   * На графике:
+   *  - оранжевая кривая — теоретическая AGGD-подгонка
+   *  - пунктир x=η — смещение асимметрии (признак BRISQUE)
+   *  - эталонной кривой нет: для попарных произведений нет универсального α=2
+   */
+  public drawPairwiseHistogram(
+    data: Float32Array,
+    xLabel: string,
+    fit: AggdFitParams,
+    yMode: ChartYMode = 'pdf'
+  ): void {
+    if (data.length === 0) return
+
+    const rawBins = this.buildRawBins(data)
+    const bins = this.normalizeBins(rawBins, data.length, yMode)
+    const { alpha: fittedAlpha, leftVariance, rightVariance, eta } = fit
+
+    const fitCurve = this.sampleCurveValues(
+      center => FeaturesExtractor.aggdPdf(center, fittedAlpha, leftVariance, rightVariance, eta),
+      yMode
+    )
+    const maxDensity = this.computeMaxScale(bins, [fitCurve])
+
+    this.drawHistogram(
+      bins,
+      maxDensity,
+      xLabel,
+      yMode,
+      [
+        { type: 'bar', color: '', label: 'Гистограмма' },
+        { type: 'line', color: THEME.trendLineColor, label: 'Огибающая', lineWidth: 1.5 },
+        {
+          type: 'line',
+          color: THEME.aggdFitColor,
+          label: `AGGD подгонка (α=${fittedAlpha.toFixed(2)})`,
+          lineWidth: 1.5
+        },
+        {
+          type: 'dashed-line',
+          color: THEME.axisColor,
+          label: `η = ${eta.toFixed(4)}`,
+          lineWidth: 1,
+          dash: [4, 4]
+        }
+      ],
+      eta,
+      layout => {
+        this.drawCurveSamples(layout, fitCurve, THEME.aggdFitColor, 1.5, [])
+      }
+    )
   }
 }

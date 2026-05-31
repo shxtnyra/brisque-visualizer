@@ -58,28 +58,49 @@
                 <canvas id="preview-canvas"></canvas>
               </div>
 
-              <h3>Карта μ <span class="hint-icon" data-hint="hint-mu">?</span></h3>
-              <div class="preview-container">
-                <canvas id="mu-canvas"></canvas>
+              <h3 id="map-title">Карта MSCN <span class="hint-icon" data-hint="hint-mscn">?</span></h3>
+
+              <div class="chart-toolbar map-toolbar">
+                <div class="chart-type-nav map-type-nav">
+                  <button class="map-type-btn" data-map="mu" title="Локальное среднее яркости">μ</button>
+                  <button class="map-type-btn" data-map="sigma" title="Локальный контраст">σ</button>
+                  <button class="map-type-btn active" data-map="mscn">MSCN</button>
+                  <button class="map-type-btn" data-map="horizontal">H</button>
+                  <button class="map-type-btn" data-map="vertical">V</button>
+                  <button class="map-type-btn" data-map="diagonal1">D1 ↘</button>
+                  <button class="map-type-btn" data-map="diagonal2">D2 ↙</button>
+                </div>
               </div>
 
-              <h3>Карта σ <span class="hint-icon" data-hint="hint-sigma">?</span></h3>
               <div class="preview-container">
-                <canvas id="sigma-canvas"></canvas>
-              </div>
-
-              <h3>Карта MSCN <span class="hint-icon" data-hint="hint-mscn">?</span></h3>
-              <div class="preview-container">
-                <canvas id="mscn-canvas"></canvas>
+                <canvas id="map-canvas"></canvas>
               </div>
 
             </div>
           </div>
 
           <div class="tab-content" id="tab-charts">
-            <h3>Гистограмма MSCN <span class="hint-icon" data-hint="hint-chart-mscn">?</span></h3>
+            <h3>Распределения MSCN <span class="hint-icon" data-hint="hint-chart-mscn">?</span></h3>
+
+            <div class="chart-toolbar">
+              <div class="chart-type-nav">
+                <button class="chart-type-btn active" data-chart="mscn">MSCN</button>
+                <button class="chart-type-btn" data-chart="horizontal">H</button>
+                <button class="chart-type-btn" data-chart="vertical">V</button>
+                <button class="chart-type-btn" data-chart="diagonal1">D1 ↘</button>
+                <button class="chart-type-btn" data-chart="diagonal2">D2 ↙</button>
+              </div>
+              <div class="chart-y-mode-nav">
+                <span class="chart-y-mode-label">Ось Y:</span>
+                <button class="chart-y-mode-btn active" data-y-mode="pdf"
+                  title="PDF-плотность: count / (N × Δx). Значения могут быть &gt; 1 — это нормально для узких бинов.">PDF</button>
+                <button class="chart-y-mode-btn" data-y-mode="peak"
+                  title="Max-Norm: count / max(count). Сопоставимо с Fig. 7 Mittal et al.">Max-Norm</button>
+              </div>
+            </div>
+
             <div class="preview-container chart-container">
-              <canvas id="mscn-chart-canvas"></canvas>
+              <canvas id="chart-canvas"></canvas>
             </div>
           </div>
 

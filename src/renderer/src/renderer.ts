@@ -1,37 +1,53 @@
 import { AppController, UiElements } from './AppController'
 
 /**
- * Точка входа для renderer-процесса: собирает DOM-элементы и инициализирует
- * главный контроллер приложения `AppController`.
+ * Точка входа renderer-процесса: собирает DOM-элементы и инициализирует AppController.
  */
-export {}
 declare global {
   interface Window {
     api: { openFile: () => Promise<string | null> }
   }
 }
 
+function requireElement<T extends HTMLElement>(id: string): T {
+  const el = document.getElementById(id)
+  if (!el) {
+    throw new Error(`DOM: не найден элемент #${id}`)
+  }
+  return el as T
+}
+
+function requireElements<T extends HTMLElement>(selector: string): NodeListOf<T> {
+  const nodes = document.querySelectorAll(selector)
+  if (nodes.length === 0) {
+    throw new Error(`DOM: не найдены элементы "${selector}"`)
+  }
+  return nodes as NodeListOf<T>
+}
+
 const els: UiElements = {
-  openBtn: document.getElementById('open-btn') as HTMLButtonElement,
-  zoomInfo: document.getElementById('zoom-info') as HTMLSpanElement,
-  workspace: document.getElementById('workspace') as HTMLDivElement,
-  imageWrapper: document.getElementById('image-wrapper') as HTMLDivElement,
-  targetImage: document.getElementById('target-image') as HTMLImageElement,
-  selectionBox: document.getElementById('selection-box') as HTMLDivElement,
-  selectionInfo: document.getElementById('selection-info') as HTMLDivElement,
-  scoreContainer: document.getElementById('brisque-score-container') as HTMLDivElement,
-  scoreVal: document.getElementById('brisque-score-val') as HTMLDivElement,
-  previewCanvas: document.getElementById('preview-canvas') as HTMLCanvasElement,
-  muCanvas: document.getElementById('mu-canvas') as HTMLCanvasElement,
-  sigmaCanvas: document.getElementById('sigma-canvas') as HTMLCanvasElement,
-  mscnCanvas: document.getElementById('mscn-canvas') as HTMLCanvasElement,
-  mscnChartCanvas: document.getElementById('mscn-chart-canvas') as HTMLCanvasElement,
-  sidebar: document.getElementById('sidebar') as HTMLDivElement,
-  resizer: document.getElementById('sidebar-resizer') as HTMLDivElement,
-  qaTabsNav: document.getElementById('qa-tabs-nav') as HTMLDivElement,
-  qaTabsContainer: document.getElementById('qa-tabs-container') as HTMLDivElement,
-  tabBtns: document.querySelectorAll('.tab-btn') as NodeListOf<HTMLElement>,
-  tabContents: document.querySelectorAll('.tab-content') as NodeListOf<HTMLElement>
+  openBtn: requireElement('open-btn'),
+  zoomInfo: requireElement('zoom-info'),
+  workspace: requireElement('workspace'),
+  imageWrapper: requireElement('image-wrapper'),
+  targetImage: requireElement('target-image'),
+  selectionBox: requireElement('selection-box'),
+  selectionInfo: requireElement('selection-info'),
+  scoreContainer: requireElement('brisque-score-container'),
+  scoreVal: requireElement('brisque-score-val'),
+  previewCanvas: requireElement('preview-canvas'),
+  mapCanvas: requireElement('map-canvas'),
+  mapTitle: requireElement('map-title'),
+  mapTypeBtns: requireElements('.map-type-btn'),
+  chartCanvas: requireElement('chart-canvas'),
+  chartTypeBtns: requireElements('.chart-type-btn'),
+  chartYModeBtns: requireElements('.chart-y-mode-btn'),
+  sidebar: requireElement('sidebar'),
+  resizer: requireElement('sidebar-resizer'),
+  qaTabsNav: requireElement('qa-tabs-nav'),
+  qaTabsContainer: requireElement('qa-tabs-container'),
+  tabBtns: requireElements('.tab-btn'),
+  tabContents: requireElements('.tab-content')
 }
 
 new AppController(els)

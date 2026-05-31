@@ -25,6 +25,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     const mu = result.scale1Mscn.mu
     const sigma = result.scale1Mscn.sigma
     const mscn = result.scale1Mscn.mscn
+    const pairwise = result.scale1Pairwise
     const features36 = result.features36
     const finalScore = result.finalScore
 
@@ -37,13 +38,28 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
       mu,
       sigma,
       mscn,
+      pairwise: {
+        horizontal: pairwise.horizontal,
+        vertical: pairwise.vertical,
+        diagonal1: pairwise.diagonal1,
+        diagonal2: pairwise.diagonal2
+      },
       features36,
       finalScore,
       width,
       height
     }
 
-    self.postMessage(response, [mu.buffer, sigma.buffer, mscn.buffer, features36.buffer])
+    self.postMessage(response, [
+      mu.buffer,
+      sigma.buffer,
+      mscn.buffer,
+      pairwise.horizontal.buffer,
+      pairwise.vertical.buffer,
+      pairwise.diagonal1.buffer,
+      pairwise.diagonal2.buffer,
+      features36.buffer
+    ])
   } catch (error: unknown) {
     const sourceError = error instanceof Error ? error : new Error(String(error))
     const errorResponse: BrisqueWorkerError = {

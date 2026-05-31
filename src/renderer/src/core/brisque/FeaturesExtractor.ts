@@ -85,6 +85,68 @@ export class FeaturesExtractor {
   }
 
   /**
+   * Масштабный параметр β GGD при нулевом среднем и дисперсии σ².
+   * σ² = β² · Γ(3/α) / Γ(1/α)
+   */
+  public static ggdBeta(alpha: number, variance: number): number {
+    const g1 = FeaturesExtractor.calculateGamma(1 / alpha)
+    const g3 = FeaturesExtractor.calculateGamma(3 / alpha)
+    return Math.sqrt((variance * g1) / g3)
+  }
+
+  /**
+   * Масштабные параметры β_L и β_R AGGD по дисперсиям левого/правого хвостов.
+   * Согласовано с формулами (13)–(15) Mittal et al.
+   */
+  public static aggdBetas(
+    alpha: number,
+    leftVariance: number,
+    rightVariance: number
+  ): { betaL: number; betaR: number } {
+    const g1 = FeaturesExtractor.calculateGamma(1 / alpha)
+    const g3 = FeaturesExtractor.calculateGamma(3 / alpha)
+    return {
+      betaL: Math.sqrt((leftVariance * g1) / g3),
+      betaR: Math.sqrt((rightVariance * g1) / g3)
+    }
+  }
+
+  /**
+   * PDF zero-mean GGD из BRISQUE: f(x) = α / (2β Γ(1/α)) · exp(-(|x|/β)^α)
+   * Используется для визуализации гистограммы MSCN.
+   */
+  public static ggdPdf(x: number, alpha: number, variance: number): number {
+    const beta = FeaturesExtractor.ggdBeta(alpha, variance)
+    if (beta <= 0) return 0
+    const g1 = FeaturesExtractor.calculateGamma(1 / alpha)
+    const coef = alpha / (2 * beta * g1)
+    return coef * Math.exp(-Math.pow(Math.abs(x) / beta, alpha))
+  }
+
+  /**
+   * PDF AGGD для попарных произведений: две ветви GGD, сшитые в точке η.
+   * Используется для наложения кривой на гистограмму (визуализация).
+   */
+  public static aggdPdf(
+    x: number,
+    alpha: number,
+    leftVariance: number,
+    rightVariance: number,
+    eta: number
+  ): number {
+    const g1 = FeaturesExtractor.calculateGamma(1 / alpha)
+    const { betaL, betaR } = FeaturesExtractor.aggdBetas(alpha, leftVariance, rightVariance)
+    if (betaL <= 0 || betaR <= 0) return 0
+
+    if (x < eta) {
+      const coefL = alpha / (2 * betaL * g1)
+      return coefL * Math.exp(-Math.pow((eta - x) / betaL, alpha))
+    }
+    const coefR = alpha / (2 * betaR * g1)
+    return coefR * Math.exp(-Math.pow((x - eta) / betaR, alpha))
+  }
+
+  /**
    * Подгоняет параметры GGD по входному массиву значений (предполагается
    * нулевое математическое ожидание для MSCN). Возвращает параметр alpha и дисперсию.
    * @param arr Входной массив значений (MSCN map).

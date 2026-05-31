@@ -6,8 +6,21 @@ import { SelectionManager } from './ui/SelectionManager'
 import { FeaturesRenderer } from './ui/FeaturesRenderer'
 import { HelpManager } from './ui/HelpManager'
 import { TooltipManager } from './ui/TooltipManager'
-import { BrisqueWorkerSuccess, BrisqueWorkerError, CropRect, HelpTabKey } from './types'
+import {
+  BrisqueWorkerSuccess,
+  BrisqueWorkerError,
+  CropRect,
+  HelpTabKey,
+  ChartKind,
+  ChartYMode,
+  MapKind,
+  MAP_VIEW_META,
+  PAIRWISE_CHART_META,
+  readGgdFit,
+  readAggdFit
+} from './types'
 
+/** DOM-элементы, с которыми работает главный контроллер */
 export interface UiElements {
   openBtn: HTMLButtonElement
   zoomInfo: HTMLSpanElement
@@ -19,23 +32,24 @@ export interface UiElements {
   scoreContainer: HTMLDivElement
   scoreVal: HTMLDivElement
   previewCanvas: HTMLCanvasElement
-  muCanvas: HTMLCanvasElement
-  sigmaCanvas: HTMLCanvasElement
-  mscnCanvas: HTMLCanvasElement
-  mscnChartCanvas: HTMLCanvasElement
+  mapCanvas: HTMLCanvasElement
+  mapTitle: HTMLHeadingElement
+  mapTypeBtns: NodeListOf<HTMLButtonElement>
+  chartCanvas: HTMLCanvasElement
+  chartTypeBtns: NodeListOf<HTMLButtonElement>
+  chartYModeBtns: NodeListOf<HTMLButtonElement>
   sidebar: HTMLDivElement
   resizer: HTMLDivElement
-  /**
-   * Центральный контроллер приложения: связывает UI-компоненты, инициализирует
-   * воркер BRISQUE, маршрутизирует данные между визуализациями и выполняет
-   * логику очередности обработок.
-   */
   qaTabsNav: HTMLDivElement
   qaTabsContainer: HTMLDivElement
   tabBtns: NodeListOf<HTMLElement>
   tabContents: NodeListOf<HTMLElement>
 }
 
+/**
+ * Центральный контроллер: связывает UI, воркер BRISQUE и визуализации.
+ * Кэширует последний ответ пайплайна — перерисовка не требует пересчёта.
+ */
 export class AppController {
   private ctx: CanvasRenderingContext2D
   private brisqueWorker: Worker
@@ -45,8 +59,13 @@ export class AppController {
   private helpManager: HelpManager
   private viewport!: ViewportManager
   private selection!: SelectionManager
-  private lastMscnData: Float32Array | null = null
+
+  /** Единый кэш результатов BRISQUE (Transferable-буферы из воркера) */
   private lastPipelineData: BrisqueWorkerSuccess | null = null
+
+  private activeMapKind: MapKind = 'mscn'
+  private activeChartKind: ChartKind = 'mscn'
+  private activeChartYMode: ChartYMode = 'pdf'
   private pendingCrop: CropRect | null = null
   private activeRequestId = 0
   private lastProcessedRequestId = 0
@@ -55,7 +74,7 @@ export class AppController {
   constructor(private els: UiElements) {
     this.ctx = this.els.previewCanvas.getContext('2d', { willReadFrequently: true })!
     this.ctx.imageSmoothingEnabled = false
-    this.chartManager = new ChartManager(this.els.mscnChartCanvas)
+    this.chartManager = new ChartManager(this.els.chartCanvas)
     this.featuresRenderer = new FeaturesRenderer('tab-features')
     this.helpManager = new HelpManager('academic-help-container')
     new TooltipManager()
@@ -66,6 +85,8 @@ export class AppController {
 
     this.initWorker()
     this.initTabs()
+    this.initMapControls()
+    this.initChartControls()
     this.initControls()
     this.helpManager.updateContext('empty')
   }
@@ -87,9 +108,8 @@ export class AppController {
       if (!response.success) {
         console.error('Ошибка в воркере:', (response as BrisqueWorkerError).error)
       } else {
-        const data = response as BrisqueWorkerSuccess
-        this.lastPipelineData = data
-        this.renderPipelineResults(data)
+        this.lastPipelineData = response as BrisqueWorkerSuccess
+        this.onPipelineComplete(this.lastPipelineData)
       }
 
       if (this.pendingCrop) {
@@ -107,22 +127,123 @@ export class AppController {
     this.sendWorkerRequest(crop, requestId)
   }
 
-  private renderPipelineResults(data: BrisqueWorkerSuccess): void {
-    this.lastMscnData = data.mscn
-    this.els.muCanvas
-      .getContext('2d')!
-      .putImageData(this.mapRenderer.renderMu(data.mu, data.width, data.height), 0, 0)
-    this.els.sigmaCanvas
-      .getContext('2d')!
-      .putImageData(this.mapRenderer.renderSigma(data.sigma, data.width, data.height), 0, 0)
-    this.els.mscnCanvas
-      .getContext('2d')!
-      .putImageData(this.mapRenderer.renderMscn(data.mscn, data.width, data.height), 0, 0)
-
-    this.chartManager.drawMscnHistogram(this.lastMscnData)
+  /** Полный цикл после нового ответа воркера */
+  private onPipelineComplete(data: BrisqueWorkerSuccess): void {
     this.featuresRenderer.render(data.features36)
     this.updateScore(data.finalScore)
+    this.renderActiveMap()
+    this.renderActiveChart()
     this.updateHelpContextForActiveTab()
+  }
+
+  /** Перерисовка активной карты из кэша (без повторного пайплайна) */
+  private renderActiveMap(): void {
+    const data = this.lastPipelineData
+    if (!data) return
+
+    const ctx = this.els.mapCanvas.getContext('2d')
+    if (!ctx) return
+
+    const { width, height } = data
+    let imageData: ImageData | null = null
+
+    switch (this.activeMapKind) {
+      case 'mu':
+        imageData = this.mapRenderer.renderMu(data.mu, width, height)
+        break
+      case 'sigma':
+        imageData = this.mapRenderer.renderSigma(data.sigma, width, height)
+        break
+      case 'mscn':
+        imageData = this.mapRenderer.renderMscn(data.mscn, width, height)
+        break
+      default:
+        imageData = this.mapRenderer.renderPairwise(
+          data.pairwise[this.activeMapKind],
+          width,
+          height,
+          this.activeMapKind
+        )
+    }
+
+    ctx.putImageData(imageData, 0, 0)
+  }
+
+  private updateMapTitle(): void {
+    const meta = MAP_VIEW_META[this.activeMapKind]
+    this.els.mapTitle.textContent = meta.title
+
+    const existingHint = this.els.mapTitle.querySelector('.hint-icon')
+    existingHint?.remove()
+
+    const hint = document.createElement('span')
+    hint.className = 'hint-icon'
+    hint.dataset.hint = meta.hint
+    hint.textContent = '?'
+    this.els.mapTitle.appendChild(document.createTextNode(' '))
+    this.els.mapTitle.appendChild(hint)
+  }
+
+  private initMapControls(): void {
+    this.els.mapTypeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mapKind = btn.dataset.map as MapKind | undefined
+        if (!mapKind) return
+
+        this.els.mapTypeBtns.forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        this.activeMapKind = mapKind
+        this.updateMapTitle()
+        this.renderActiveMap()
+      })
+    })
+  }
+
+  /** Перерисовка активного графика из кэша */
+  private renderActiveChart(): void {
+    const data = this.lastPipelineData
+    if (!data) return
+
+    const yMode = this.activeChartYMode
+
+    if (this.activeChartKind === 'mscn') {
+      this.chartManager.drawMscnHistogram(data.mscn, readGgdFit(data.features36, 0), yMode)
+      return
+    }
+
+    const meta = PAIRWISE_CHART_META[this.activeChartKind]
+    this.chartManager.drawPairwiseHistogram(
+      data.pairwise[this.activeChartKind],
+      meta.xLabel,
+      readAggdFit(data.features36, meta.featureOffset),
+      yMode
+    )
+  }
+
+  private initChartControls(): void {
+    this.els.chartTypeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const chartKind = btn.dataset.chart as ChartKind | undefined
+        if (!chartKind) return
+
+        this.els.chartTypeBtns.forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        this.activeChartKind = chartKind
+        this.renderActiveChart()
+      })
+    })
+
+    this.els.chartYModeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const yMode = btn.dataset.yMode as ChartYMode | undefined
+        if (!yMode) return
+
+        this.els.chartYModeBtns.forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        this.activeChartYMode = yMode
+        this.renderActiveChart()
+      })
+    })
   }
 
   private initTabs(): void {
@@ -138,10 +259,10 @@ export class AppController {
 
         this.helpManager.updateContext(targetId)
 
-        if (targetId === 'tab-maps' || targetId === 'tab-charts') {
-          if (this.lastPipelineData) {
-            this.renderPipelineResults(this.lastPipelineData)
-          }
+        if (targetId === 'tab-maps') {
+          this.renderActiveMap()
+        } else if (targetId === 'tab-charts') {
+          this.renderActiveChart()
         }
       })
     })
@@ -179,9 +300,8 @@ export class AppController {
     )
 
     new SidebarController(this.els.sidebar, this.els.resizer, () => {
-      if (this.lastMscnData) {
-        this.chartManager.drawMscnHistogram(this.lastMscnData)
-      }
+      this.renderActiveMap()
+      this.renderActiveChart()
     })
   }
 
@@ -193,7 +313,6 @@ export class AppController {
       this.ctx.clearRect(0, 0, this.els.previewCanvas.width, this.els.previewCanvas.height)
       this.els.qaTabsNav.style.display = 'none'
       this.els.qaTabsContainer.style.display = 'none'
-      this.lastMscnData = null
       this.lastPipelineData = null
       this.helpManager.updateContext('empty')
       return
@@ -217,15 +336,11 @@ export class AppController {
     }
   }
 
-  private runBrisquePipeline(force: boolean = false): void {
+  private runBrisquePipeline(_force: boolean = false): void {
     const crop = this.selection.getCrop()
     if (crop.w <= 0 || crop.h <= 0) return
 
     if (this.isWorkerBusy) {
-      if (!force) {
-        this.pendingCrop = crop
-        return
-      }
       this.pendingCrop = crop
       return
     }
@@ -238,8 +353,8 @@ export class AppController {
     this.els.qaTabsNav.style.display = 'flex'
     this.els.qaTabsContainer.style.display = 'block'
     this.updateHelpContextForActiveTab()
-    this.els.muCanvas.width = this.els.sigmaCanvas.width = this.els.mscnCanvas.width = crop.w
-    this.els.muCanvas.height = this.els.sigmaCanvas.height = this.els.mscnCanvas.height = crop.h
+    this.els.mapCanvas.width = crop.w
+    this.els.mapCanvas.height = crop.h
 
     try {
       const imageData = this.ctx.getImageData(0, 0, crop.w, crop.h)

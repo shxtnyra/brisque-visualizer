@@ -1,48 +1,90 @@
+import { isPairwiseBorderPixel, PairwiseDirection } from '../types'
+
 /**
- * Утилиты для рендеринга карт (`mu`, `sigma`, `mscn`) в виде ImageData,
- * пригодного для отрисовки на Canvas.
+ * Коэффициенты отображения карт.
+ * Это только визуальный масштаб — не часть алгоритма BRISQUE.
+ */
+const MSCN_DISPLAY_GAIN = 40
+const MSCN_ZERO_GRAY = 128
+const SIGMA_DISPLAY_GAIN = 2
+/** Яркость пикселей-заглушек на границах pairwise-карт */
+const BORDER_PIXEL_GRAY = 48
+
+/**
+ * Утилиты для рендеринга карт (μ, σ, MSCN, попарные произведения) в ImageData.
  */
 export class MapRenderer {
+  private assertBufferSize(data: Float32Array, w: number, h: number): void {
+    if (data.length !== w * h) {
+      throw new Error(`MapRenderer: ожидался буфер ${w * h}, получено ${data.length}`)
+    }
+  }
+
+  private writeGrayPixel(img: ImageData, i: number, gray: number): void {
+    const idx = i * 4
+    const clamped = Math.max(0, Math.min(255, gray))
+    img.data[idx] = img.data[idx + 1] = img.data[idx + 2] = clamped
+    img.data[idx + 3] = 255
+  }
+
+  /** MSCN и попарные произведения: ноль → серый 128, контраст через gain */
+  private normalizedToGray(value: number): number {
+    return value * MSCN_DISPLAY_GAIN + MSCN_ZERO_GRAY
+  }
+
   /**
-   * Карта средних значений (μ) - отображается как оттенок серого.
+   * Карта локального среднего μ (освещённость).
+   * Вход — grayscale 0…255, отображается напрямую.
    */
   renderMu(mu: Float32Array, w: number, h: number): ImageData {
+    this.assertBufferSize(mu, w, h)
     const img = new ImageData(w, h)
     for (let i = 0; i < mu.length; i++) {
-      const val = Math.max(0, Math.min(255, mu[i]))
-      const idx = i * 4
-      img.data[idx] = img.data[idx + 1] = img.data[idx + 2] = val
-      img.data[idx + 3] = 255 // Alpha
+      this.writeGrayPixel(img, i, mu[i])
     }
     return img
   }
 
   /**
-   * Карта локального контраста (σ) - черно-белая.
+   * Карта локального контраста σ.
+   * Усиление SIGMA_DISPLAY_GAIN делает слабые границы видимыми на экране.
    */
   renderSigma(sigma: Float32Array, w: number, h: number): ImageData {
+    this.assertBufferSize(sigma, w, h)
     const img = new ImageData(w, h)
     for (let i = 0; i < sigma.length; i++) {
-      // Дисперсия может быть небольшой, часто ее умножают на коэффициент (например, 2 или 3) для наглядности
-      const val = Math.max(0, Math.min(255, sigma[i] * 2))
-      const idx = i * 4
-      img.data[idx] = img.data[idx + 1] = img.data[idx + 2] = val
-      img.data[idx + 3] = 255
+      this.writeGrayPixel(img, i, sigma[i] * SIGMA_DISPLAY_GAIN)
+    }
+    return img
+  }
+
+  /** Карта коэффициентов MSCN после пространственной нормализации */
+  renderMscn(mscn: Float32Array, w: number, h: number): ImageData {
+    this.assertBufferSize(mscn, w, h)
+    const img = new ImageData(w, h)
+    for (let i = 0; i < mscn.length; i++) {
+      this.writeGrayPixel(img, i, this.normalizedToGray(mscn[i]))
     }
     return img
   }
 
   /**
-   * Коэффициенты MSCN - нормализуем и сдвигаем ноль в серый (128).
+   * Карта попарных произведений MSCN для заданного направления.
+   * Пиксели-заглушки на границах (где нет соседа) затемняются для отличия от данных.
    */
-  renderMscn(mscn: Float32Array, w: number, h: number): ImageData {
+  renderPairwise(
+    pairwise: Float32Array,
+    w: number,
+    h: number,
+    direction: PairwiseDirection
+  ): ImageData {
+    this.assertBufferSize(pairwise, w, h)
     const img = new ImageData(w, h)
-    for (let i = 0; i < mscn.length; i++) {
-      // mscn обычно лежит в пределах от -3 до 3. Умножаем на 40 для контраста и сдвигаем к 128
-      const val = Math.max(0, Math.min(255, mscn[i] * 40 + 128))
-      const idx = i * 4
-      img.data[idx] = img.data[idx + 1] = img.data[idx + 2] = val
-      img.data[idx + 3] = 255
+    for (let i = 0; i < pairwise.length; i++) {
+      const gray = isPairwiseBorderPixel(i, w, h, direction)
+        ? BORDER_PIXEL_GRAY
+        : this.normalizedToGray(pairwise[i])
+      this.writeGrayPixel(img, i, gray)
     }
     return img
   }
