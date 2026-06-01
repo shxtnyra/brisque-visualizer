@@ -87,7 +87,7 @@ button:hover {
 #selection-box {
   position: absolute;
   border: 2px dashed var(--accent);
-  background-color: rgba(0, 255, 210, 0.15);
+  background-color: var(--selection-fill);
   pointer-events: auto;
   cursor: move;
   display: none;
@@ -156,12 +156,25 @@ button:hover {
   font-size: 16px;
   font-weight: bold;
   margin-left: 5px;
-  color: var(--accent-2);
+  color: var(--text);
+}
+
+#brisque-score-val.score-good {
+  color: var(--score-good);
+}
+
+#brisque-score-val.score-medium {
+  color: var(--score-medium);
+}
+
+#brisque-score-val.score-bad {
+  color: var(--score-bad);
 }
 
 /* ================= САЙДБАР (ПРАВАЯ ЧАСТЬ) ================= */
 .sidebar {
-  width: 460px;
+  width: 470px;
+  flex-shrink: 0;
   background-color: var(--panel-2);
   border-left: 1px solid var(--border);
   padding: 20px;
@@ -297,7 +310,7 @@ canvas {
 .tab-btn.active {
   color: var(--accent);
   border-bottom: 2px solid var(--accent);
-  background-color: rgba(0, 255, 204, 0.05);
+  background-color: var(--accent-muted-bg);
 }
 
 .tab-btn:hover:not(.active) {
@@ -364,7 +377,7 @@ canvas {
 .chart-y-mode-btn.active {
   color: var(--accent);
   border-color: var(--accent);
-  background-color: rgba(0, 255, 204, 0.08);
+  background-color: var(--accent-muted-bg);
 }
 
 .map-type-btn:hover:not(.active),
@@ -481,7 +494,7 @@ canvas {
 }
 
 .highlight-row {
-  background: rgba(0, 255, 170, 0.05);
+  background: var(--highlight-row-bg);
 }
 
 /* ================= АКАДЕМИЧЕСКАЯ СПРАВКА ================= */
@@ -577,7 +590,7 @@ canvas {
 }
 
 /* ================= ПОЛНОЭКРАННЫЙ ПРОСМОТР ================= */
-#tab-charts > h3 {
+#tab-charts>h3 {
   color: var(--accent);
   font-size: 14px;
   display: flex;
@@ -602,7 +615,7 @@ canvas {
 .fullscreen-open-btn:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent);
-  background: rgba(0, 255, 204, 0.08);
+  background: var(--accent-muted-bg);
 }
 
 .fullscreen-open-btn:disabled {
@@ -681,6 +694,12 @@ body.fullscreen-open {
   width: 32px;
   padding: 6px 0;
   text-align: center;
+}
+
+.fullscreen-close-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
 }
 
 .fullscreen-content-panel {

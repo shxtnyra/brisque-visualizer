@@ -53,13 +53,16 @@
           <div class="tab-content active" id="tab-maps">
             <div class="qa-visuals">
 
-              <h3>1. Выделенная область</h3>
+              <h3>Выделенная область</h3>
               <div class="preview-container">
                 <canvas id="preview-canvas"></canvas>
               </div>
 
-              <h3 id="map-title">Карта MSCN <span class="hint-icon" data-hint="hint-mscn">?</span>
-                <button type="button" class="fullscreen-open-btn" data-fullscreen="map" title="На весь экран" aria-label="Открыть карту на весь экран">⛶</button>
+              <h3 id="map-title">
+                <span id="map-title-label">Карта MSCN</span>
+                <span id="map-title-hint" class="hint-icon" data-hint="hint-mscn">?</span>
+                <button type="button" class="fullscreen-open-btn" data-fullscreen="map" title="На весь экран"
+                  aria-label="Открыть карту на весь экран">⛶</button>
               </h3>
 
               <div class="chart-toolbar map-toolbar">
@@ -83,7 +86,8 @@
 
           <div class="tab-content" id="tab-charts">
             <h3>Распределения MSCN <span class="hint-icon" data-hint="hint-chart-mscn">?</span>
-              <button type="button" class="fullscreen-open-btn" data-fullscreen="chart" title="На весь экран" aria-label="Открыть график на весь экран">⛶</button>
+              <button type="button" class="fullscreen-open-btn" data-fullscreen="chart" title="На весь экран"
+                aria-label="Открыть график на весь экран">⛶</button>
             </h3>
 
             <div class="chart-toolbar">
@@ -125,7 +129,8 @@
         <span id="fullscreen-title" class="fullscreen-title"></span>
         <span id="fullscreen-zoom-info" class="fullscreen-zoom-info">Масштаб: 100%</span>
         <button type="button" id="fullscreen-reset-btn" class="fullscreen-action-btn">Сброс</button>
-        <button type="button" id="fullscreen-close-btn" class="fullscreen-action-btn fullscreen-close-btn" aria-label="Закрыть">✕</button>
+        <button type="button" id="fullscreen-close-btn" class="fullscreen-action-btn fullscreen-close-btn"
+          aria-label="Закрыть">✕</button>
       </div>
 
       <div id="fullscreen-map-panel" class="fullscreen-content-panel" style="display: none;">

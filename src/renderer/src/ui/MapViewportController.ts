@@ -105,8 +105,4 @@ export class MapViewportController {
     }
     this.onChange?.()
   }
-
-  public getZoom(): number {
-    return this.zoom
-  }
 }

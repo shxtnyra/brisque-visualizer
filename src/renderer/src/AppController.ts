@@ -37,6 +37,8 @@ export interface UiElements {
   previewCanvas: HTMLCanvasElement
   mapCanvas: HTMLCanvasElement
   mapTitle: HTMLHeadingElement
+  mapTitleLabel: HTMLSpanElement
+  mapTitleHint: HTMLSpanElement
   mapTypeBtns: NodeListOf<HTMLButtonElement>
   chartCanvas: HTMLCanvasElement
   chartTypeBtns: NodeListOf<HTMLButtonElement>
@@ -244,17 +246,8 @@ export class AppController {
 
   private updateMapTitle(): void {
     const meta = MAP_VIEW_META[this.activeMapKind]
-    this.els.mapTitle.textContent = meta.title
-
-    const existingHint = this.els.mapTitle.querySelector('.hint-icon')
-    existingHint?.remove()
-
-    const hint = document.createElement('span')
-    hint.className = 'hint-icon'
-    hint.dataset.hint = meta.hint
-    hint.textContent = '?'
-    this.els.mapTitle.appendChild(document.createTextNode(' '))
-    this.els.mapTitle.appendChild(hint)
+    this.els.mapTitleLabel.textContent = meta.title
+    this.els.mapTitleHint.dataset.hint = meta.hint
   }
 
   private setActiveMapKind(mapKind: MapKind): void {
@@ -463,6 +456,7 @@ export class AppController {
       this.els.selectionInfo.innerText = 'Размер: 0 x 0 px'
       this.els.scoreContainer.style.display = 'none'
       this.els.scoreVal.textContent = ''
+      this.els.scoreVal.classList.remove('score-good', 'score-medium', 'score-bad')
       this.ctx.clearRect(0, 0, this.els.previewCanvas.width, this.els.previewCanvas.height)
       this.els.qaTabsNav.style.display = 'none'
       this.els.qaTabsContainer.style.display = 'none'
@@ -481,12 +475,13 @@ export class AppController {
   private updateScore(finalScore: number): void {
     this.els.scoreContainer.style.display = 'block'
     this.els.scoreVal.textContent = finalScore.toFixed(2)
+    this.els.scoreVal.classList.remove('score-good', 'score-medium', 'score-bad')
     if (finalScore < 30) {
-      this.els.scoreVal.style.color = '#00ffcc'
+      this.els.scoreVal.classList.add('score-good')
     } else if (finalScore < 60) {
-      this.els.scoreVal.style.color = '#ffaa00'
+      this.els.scoreVal.classList.add('score-medium')
     } else {
-      this.els.scoreVal.style.color = '#ff4444'
+      this.els.scoreVal.classList.add('score-bad')
     }
   }
 

@@ -23,18 +23,18 @@ interface ChartTheme {
   font: string
 }
 
-const THEME: ChartTheme = {
-  backgroundColor: '#111111',
-  gridColor: '#222222',
-  axisColor: '#444444',
-  textColor: '#888888',
-  barGradientStart: 'rgba(0, 255, 170, 0.4)',
-  barGradientEnd: 'rgba(0, 255, 170, 0.01)',
-  trendLineColor: '#00ffaa',
-  ggdReferenceColor: 'rgba(100, 200, 255, 0.9)',
-  ggdFitColor: 'rgba(255, 180, 60, 0.95)',
-  aggdFitColor: 'rgba(255, 180, 60, 0.95)',
-  font: '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+const CHART_CSS_VARS: Record<keyof ChartTheme, string> = {
+  backgroundColor: '--chart-bg',
+  gridColor: '--chart-grid',
+  axisColor: '--chart-axis',
+  textColor: '--chart-text',
+  barGradientStart: '--chart-bar-start',
+  barGradientEnd: '--chart-bar-end',
+  trendLineColor: '--chart-trend',
+  ggdReferenceColor: '--chart-ggd-ref',
+  ggdFitColor: '--chart-ggd-fit',
+  aggdFitColor: '--chart-aggd-fit',
+  font: '--font-base'
 }
 
 // ---------------------------------------------------------------------------
@@ -80,6 +80,25 @@ export class ChartManager {
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d', { alpha: false })!
+  }
+
+  /** Цвета графика из CSS-переменных темы (theme-dark / theme-light). */
+  private readTheme(): ChartTheme {
+    const root = getComputedStyle(document.documentElement)
+    const value = (cssVar: string, fallback: string): string => {
+      const raw = root.getPropertyValue(cssVar).trim()
+      return raw || fallback
+    }
+
+    const theme = {} as ChartTheme
+    for (const key of Object.keys(CHART_CSS_VARS) as (keyof ChartTheme)[]) {
+      const cssVar = CHART_CSS_VARS[key]
+      theme[key] =
+        key === 'font'
+          ? `12px ${value(cssVar, "'Segoe UI', Roboto, sans-serif")}`
+          : value(cssVar, '')
+    }
+    return theme
   }
 
   /** Форматирование подписи деления оси Y в зависимости от режима и величины */
@@ -218,12 +237,12 @@ export class ChartManager {
   }
 
   /** Вертикальный пунктир: x = 0 для MSCN, x = η для попарных произведений */
-  private drawVerticalMarker(layout: ChartLayout, value: number): void {
+  private drawVerticalMarker(layout: ChartLayout, value: number, theme: ChartTheme): void {
     const { padding, graphWidth, graphHeight } = layout
     const pct = (value - MIN_VAL) / RANGE
     const x = padding.left + pct * graphWidth
 
-    this.ctx.strokeStyle = THEME.axisColor
+    this.ctx.strokeStyle = theme.axisColor
     this.ctx.lineWidth = 1
     this.ctx.setLineDash([4, 4])
     this.ctx.beginPath()
@@ -240,7 +259,8 @@ export class ChartManager {
   private drawLegend(
     layout: ChartLayout,
     gradient: CanvasGradient,
-    items: HistogramLegendItem[]
+    items: HistogramLegendItem[],
+    theme: ChartTheme
   ): void {
     const { padding, graphWidth } = layout
     const legendX = padding.left + graphWidth - 6
@@ -267,7 +287,7 @@ export class ChartManager {
         this.ctx.setLineDash([])
       }
 
-      this.ctx.fillStyle = THEME.textColor
+      this.ctx.fillStyle = theme.textColor
       this.ctx.fillText(item.label, legendX - 12, legendY + lineH / 2)
       legendY += lineH + gap
     }
@@ -286,6 +306,7 @@ export class ChartManager {
     markerValue: number | null,
     drawCurves: (layout: ChartLayout) => void
   ): void {
+    const theme = this.readTheme()
     const parent = this.canvas.parentElement
     if (!parent) return
 
@@ -306,7 +327,7 @@ export class ChartManager {
     this.ctx.imageSmoothingEnabled = true
     this.ctx.imageSmoothingQuality = 'high'
 
-    this.ctx.fillStyle = THEME.backgroundColor
+    this.ctx.fillStyle = theme.backgroundColor
     this.ctx.fillRect(0, 0, width, height)
 
     const padding = { top: 15, right: 15, bottom: 38, left: 52 }
@@ -316,10 +337,10 @@ export class ChartManager {
     const layout: ChartLayout = { barWidth, padding, graphWidth, graphHeight, maxDensity }
 
     // --- Сетка и подписи оси Y ---
-    this.ctx.strokeStyle = THEME.gridColor
+    this.ctx.strokeStyle = theme.gridColor
     this.ctx.lineWidth = 1
-    this.ctx.fillStyle = THEME.textColor
-    this.ctx.font = THEME.font
+    this.ctx.fillStyle = theme.textColor
+    this.ctx.font = theme.font
 
     const yTicks = this.computeYTicks(maxDensity)
     this.ctx.textAlign = 'right'
@@ -348,10 +369,10 @@ export class ChartManager {
     })
     this.ctx.fillText(xLabel, padding.left + graphWidth / 2, padding.top + graphHeight + 20)
 
-    // --- Столбцы гистограммы (зелёный градиент) ---
+    // --- Столбцы гистограммы ---
     const gradient = this.ctx.createLinearGradient(0, padding.top, 0, padding.top + graphHeight)
-    gradient.addColorStop(0, THEME.barGradientStart)
-    gradient.addColorStop(1, THEME.barGradientEnd)
+    gradient.addColorStop(0, theme.barGradientStart)
+    gradient.addColorStop(1, theme.barGradientEnd)
 
     this.ctx.fillStyle = gradient
     for (let b = 0; b < BINS_COUNT; b++) {
@@ -364,7 +385,7 @@ export class ChartManager {
     }
 
     // --- Огибающая: ломаная через вершины столбцов (та же высота, что у bars) ---
-    this.ctx.strokeStyle = THEME.trendLineColor
+    this.ctx.strokeStyle = theme.trendLineColor
     this.ctx.lineWidth = 1.5
     this.ctx.beginPath()
     for (let b = 0; b < BINS_COUNT; b++) {
@@ -380,13 +401,13 @@ export class ChartManager {
     drawCurves(layout)
 
     if (markerValue !== null) {
-      this.drawVerticalMarker(layout, markerValue)
+      this.drawVerticalMarker(layout, markerValue, theme)
     }
 
     // --- Подпись оси Y (повёрнута на 90°) ---
     this.ctx.save()
-    this.ctx.fillStyle = THEME.textColor
-    this.ctx.font = THEME.font
+    this.ctx.fillStyle = theme.textColor
+    this.ctx.font = theme.font
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
     this.ctx.translate(14, padding.top + graphHeight / 2)
@@ -394,7 +415,7 @@ export class ChartManager {
     this.ctx.fillText(this.yAxisLabel(yMode), 0, 0)
     this.ctx.restore()
 
-    this.drawLegend(layout, gradient, legendItems)
+    this.drawLegend(layout, gradient, legendItems, theme)
     this.ctx.restore()
   }
 
@@ -408,8 +429,8 @@ export class ChartManager {
    *
    * На графике:
    *  - столбцы — реальное распределение пикселей
-   *  - синяя пунктирная — эталон GGD с α=2 (идеальное натуральное фото)
-   *  - оранжевая — GGD с подогнанным α
+   *  - зелёная пунктирная — эталон GGD с α=2 (идеальное натуральное фото)
+   *  - красная — GGD с подогнанным α
    *  - вертикальная линия x=0 — центр симметрии
    */
   public drawMscnHistogram(
@@ -432,6 +453,7 @@ export class ChartManager {
       yMode
     )
     const maxDensity = this.computeMaxScale(bins, [refCurve, fitCurve])
+    const theme = this.readTheme()
 
     this.drawHistogram(
       bins,
@@ -440,25 +462,25 @@ export class ChartManager {
       yMode,
       [
         { type: 'bar', color: '', label: 'Гистограмма' },
-        { type: 'line', color: THEME.trendLineColor, label: 'Огибающая', lineWidth: 1.5 },
+        { type: 'line', color: theme.trendLineColor, label: 'Огибающая', lineWidth: 1.5 },
         {
           type: 'dashed-line',
-          color: THEME.ggdReferenceColor,
+          color: theme.ggdReferenceColor,
           label: `GGD эталон (α=${REFERENCE_GGD_ALPHA})`,
           lineWidth: 1.2,
           dash: [6, 4]
         },
         {
           type: 'line',
-          color: THEME.ggdFitColor,
+          color: theme.ggdFitColor,
           label: `GGD подгонка (α=${fittedAlpha.toFixed(2)})`,
           lineWidth: 1.5
         }
       ],
       0,
       layout => {
-        this.drawCurveSamples(layout, refCurve, THEME.ggdReferenceColor, 1.2, [6, 4])
-        this.drawCurveSamples(layout, fitCurve, THEME.ggdFitColor, 1.5, [])
+        this.drawCurveSamples(layout, refCurve, theme.ggdReferenceColor, 1.2, [6, 4])
+        this.drawCurveSamples(layout, fitCurve, theme.ggdFitColor, 1.5, [])
       }
     )
   }
@@ -471,7 +493,7 @@ export class ChartManager {
    *  - fit — параметры AGGD (α, η, σ²_L, σ²_R) из features36
    *
    * На графике:
-   *  - оранжевая кривая — теоретическая AGGD-подгонка
+   *  - красная кривая — теоретическая AGGD-подгонка
    *  - пунктир x=η — смещение асимметрии (признак BRISQUE)
    *  - эталонной кривой нет: для попарных произведений нет универсального α=2
    */
@@ -492,6 +514,7 @@ export class ChartManager {
       yMode
     )
     const maxDensity = this.computeMaxScale(bins, [fitCurve])
+    const theme = this.readTheme()
 
     this.drawHistogram(
       bins,
@@ -500,16 +523,16 @@ export class ChartManager {
       yMode,
       [
         { type: 'bar', color: '', label: 'Гистограмма' },
-        { type: 'line', color: THEME.trendLineColor, label: 'Огибающая', lineWidth: 1.5 },
+        { type: 'line', color: theme.trendLineColor, label: 'Огибающая', lineWidth: 1.5 },
         {
           type: 'line',
-          color: THEME.aggdFitColor,
+          color: theme.aggdFitColor,
           label: `AGGD подгонка (α=${fittedAlpha.toFixed(2)})`,
           lineWidth: 1.5
         },
         {
           type: 'dashed-line',
-          color: THEME.axisColor,
+          color: theme.axisColor,
           label: `η = ${eta.toFixed(4)}`,
           lineWidth: 1,
           dash: [4, 4]
@@ -517,7 +540,7 @@ export class ChartManager {
       ],
       eta,
       layout => {
-        this.drawCurveSamples(layout, fitCurve, THEME.aggdFitColor, 1.5, [])
+        this.drawCurveSamples(layout, fitCurve, theme.aggdFitColor, 1.5, [])
       }
     )
   }

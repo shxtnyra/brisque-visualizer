@@ -38,6 +38,8 @@ const els: UiElements = {
   previewCanvas: requireElement('preview-canvas'),
   mapCanvas: requireElement('map-canvas'),
   mapTitle: requireElement('map-title'),
+  mapTitleLabel: requireElement('map-title-label'),
+  mapTitleHint: requireElement('map-title-hint'),
   mapTypeBtns: requireElements('.map-type-btn'),
   chartCanvas: requireElement('chart-canvas'),
   chartTypeBtns: requireElements('.chart-type-btn'),

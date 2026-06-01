@@ -10,12 +10,6 @@ export interface CropRect {
   h: number
 }
 
-/** Размер обработанного изображения в пикселях */
-export interface ImageSize {
-  width: number
-  height: number
-}
-
 /** Входные данные для BRISQUE воркера */
 export interface WorkerInput {
   rgbaArray: Uint8ClampedArray
@@ -152,9 +146,6 @@ export interface BrisqueWorkerError {
   requestId: number
   error: string
 }
-
-/** Союз возможных ответов от воркера */
-export type BrisqueWorkerResponse = BrisqueWorkerSuccess | BrisqueWorkerError
 
 /** Тип ключа для табуляции (помощь + функции) */
 export type HelpTabKey = 'tab-maps' | 'tab-charts' | 'tab-features' | 'empty'

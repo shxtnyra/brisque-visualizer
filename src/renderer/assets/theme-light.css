@@ -1,14 +1,14 @@
 :root {
-  --bg: #f6f7f9;
+  --bg: #fafafa;
   --surface: #ffffff;
   --panel: #f3f4f6;
   --panel-2: #eeeeee;
-  --text: #1b1b1b;
+  --text: #1a1a1a;
   --muted: #555555;
-  --muted-2: #777777;
-  --accent: #007acc;
-  --accent-2: #0062a3;
-  --primary: #007acc;
+  --muted-2: #666666;
+  --accent: #2563eb;
+  --accent-2: #1d4ed8;
+  --primary: #2563eb;
   --border: #d8d8d8;
   --muted-border: #e6e6e6;
   --table-header-bg: #f2f2f2;
@@ -23,4 +23,24 @@
   --font-base: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --code-font-family: 'JetBrains Mono', Consolas, monospace;
   --code-color: #0b66c3;
+  --accent-subtle: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-muted-bg: color-mix(in srgb, var(--accent) 6%, transparent);
+  --selection-fill: color-mix(in srgb, var(--accent) 14%, transparent);
+  --highlight-row-bg: color-mix(in srgb, var(--chart-bar) 8%, transparent);
+
+  --chart-bg: #ffffff;
+  --chart-grid: #e0e0e0;
+  --chart-axis: #888888;
+  --chart-text: #555555;
+  --chart-bar: #4c72b0;
+  --chart-bar-start: rgba(76, 114, 176, 0.5);
+  --chart-bar-end: rgba(76, 114, 176, 0.03);
+  --chart-trend: #666666;
+  --chart-ggd-ref: #55a868;
+  --chart-ggd-fit: #c44e52;
+  --chart-aggd-fit: #c44e52;
+
+  --score-good: #2ca02c;
+  --score-medium: #d68910;
+  --score-bad: #c0392b;
 }
