@@ -358,7 +358,7 @@ export class AppController {
     const attach = (
       container: HTMLElement | null,
       resolve: () => { canvas: HTMLCanvasElement; filename: string } | null
-    ) => {
+    ): void => {
       if (container) menu.attach(container, resolve)
     }
 
@@ -448,7 +448,7 @@ export class AppController {
         this.updateOriginalPreview(crop)
         this.runBrisquePipeline()
       },
-      () => this.runBrisquePipeline(true)
+      () => this.runBrisquePipeline()
     )
 
     new SidebarController(this.els.sidebar, this.els.resizer, () => {
@@ -490,7 +490,7 @@ export class AppController {
     }
   }
 
-  private runBrisquePipeline(_force: boolean = false): void {
+  private runBrisquePipeline(): void {
     const crop = this.selection.getCrop()
     if (crop.w <= 0 || crop.h <= 0) return
 

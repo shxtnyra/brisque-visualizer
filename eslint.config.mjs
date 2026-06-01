@@ -24,5 +24,11 @@ export default defineConfig(
       }
     }
   },
-  ...tseslint.configs.recommended
+  ...tseslint.configs.recommended,
+  {
+    files: ['scripts/**/*.mjs'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off'
+    }
+  }
 )
