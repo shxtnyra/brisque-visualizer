@@ -1,425 +1,170 @@
-import { MapRenderer } from './ui/MapRenderer'
-import { ChartManager } from './ui/ChartManager'
-import { SidebarController } from './ui/SidebarController'
 import { ViewportManager } from './ui/ViewportManager'
 import { SelectionManager } from './ui/SelectionManager'
-import { FeaturesRenderer } from './ui/FeaturesRenderer'
 import { HelpManager } from './ui/HelpManager'
 import { TooltipManager } from './ui/TooltipManager'
-import { FullscreenModal } from './ui/FullscreenModal'
-import { CanvasContextMenu } from './ui/CanvasContextMenu'
-import {
-  BrisqueWorkerSuccess,
-  BrisqueWorkerError,
-  CropRect,
-  HelpTabKey,
-  ChartKind,
-  ChartYMode,
-  MapKind,
-  FullscreenMode,
-  MAP_VIEW_META,
-  PAIRWISE_CHART_META,
-  readGgdFit,
-  readAggdFit
-} from './types'
+import { SidebarController } from './ui/SidebarController'
+import { CropRect } from './types'
+import { TabHost } from './shell/TabHost'
+import { ScorePresenter } from './shell/ScorePresenter'
+import { AnalysisResult } from './shell/types'
+import { MethodRegistry } from './shell/MethodRegistry'
+import { MethodUiPlugin } from './shell/QualityMethod'
+import { createMethodRegistry } from './methods/registerMethods'
+import { FullscreenModalElements } from './ui/FullscreenModal'
+import { ShellFullscreenHost } from './shell/ShellFullscreenHost'
+import { MethodSwitcher, resetAnalysisSession } from './shell/MethodSwitcher'
+import { MethodSelector } from './shell/MethodSelector'
 
-/** DOM-элементы, с которыми работает главный контроллер */
-export interface UiElements {
+/** DOM оболочки приложения (без разметки вкладок конкретного метода) */
+export interface ShellElements {
   openBtn: HTMLButtonElement
   zoomInfo: HTMLSpanElement
+  methodSelectContainer: HTMLElement
   workspace: HTMLDivElement
   imageWrapper: HTMLDivElement
   targetImage: HTMLImageElement
   selectionBox: HTMLDivElement
   selectionInfo: HTMLDivElement
   scoreContainer: HTMLDivElement
-  scoreVal: HTMLDivElement
+  scoreLabel: HTMLSpanElement
+  scoreVal: HTMLSpanElement
   previewCanvas: HTMLCanvasElement
-  mapCanvas: HTMLCanvasElement
-  mapTitle: HTMLHeadingElement
-  mapTitleLabel: HTMLSpanElement
-  mapTitleHint: HTMLSpanElement
-  mapTypeBtns: NodeListOf<HTMLButtonElement>
-  chartCanvas: HTMLCanvasElement
-  chartTypeBtns: NodeListOf<HTMLButtonElement>
-  chartYModeBtns: NodeListOf<HTMLButtonElement>
   sidebar: HTMLDivElement
   resizer: HTMLDivElement
   qaTabsNav: HTMLDivElement
   qaTabsContainer: HTMLDivElement
-  tabBtns: NodeListOf<HTMLElement>
-  tabContents: NodeListOf<HTMLElement>
-  fullscreenOpenBtns: NodeListOf<HTMLButtonElement>
-  fullscreenModal: HTMLDivElement
-  fullscreenTitle: HTMLSpanElement
-  fullscreenZoomInfo: HTMLSpanElement
-  fullscreenCloseBtn: HTMLButtonElement
-  fullscreenResetBtn: HTMLButtonElement
-  fullscreenMapViewport: HTMLDivElement
-  fullscreenMapCanvas: HTMLCanvasElement
-  fullscreenChartContainer: HTMLDivElement
-  fullscreenChartCanvas: HTMLCanvasElement
-  fullscreenMapPanel: HTMLDivElement
-  fullscreenChartPanel: HTMLDivElement
-  fsMapTypeBtns: NodeListOf<HTMLButtonElement>
-  fsChartTypeBtns: NodeListOf<HTMLButtonElement>
-  fsChartYModeBtns: NodeListOf<HTMLButtonElement>
+  fullscreen: FullscreenModalElements
 }
 
 /**
- * Центральный контроллер: связывает UI, воркер BRISQUE и визуализации.
- * Кэширует последний ответ пайплайна — перерисовка не требует пересчёта.
+ * Оболочка: workspace, crop, переключение методов через MethodRegistry.
  */
 export class AppController {
   private ctx: CanvasRenderingContext2D
-  private brisqueWorker: Worker
-  private mapRenderer = new MapRenderer()
-  private chartManager: ChartManager
-  private fullscreenChartManager: ChartManager
-  private featuresRenderer: FeaturesRenderer
+  private worker!: Worker
   private helpManager: HelpManager
-  private fullscreenModal: FullscreenModal
-  private viewport!: ViewportManager
-  private selection!: SelectionManager
+  private tabHost: TabHost
+  private scorePresenter: ScorePresenter
+  private methodRegistry: MethodRegistry
+  private methodSwitcher: MethodSwitcher
+  private activeUi!: MethodUiPlugin
 
-  /** Единый кэш результатов BRISQUE (Transferable-буферы из воркера) */
-  private lastPipelineData: BrisqueWorkerSuccess | null = null
-
-  private activeMapKind: MapKind = 'mscn'
-  private activeChartKind: ChartKind = 'mscn'
-  private activeChartYMode: ChartYMode = 'pdf'
+  private lastResult: AnalysisResult | null = null
   private pendingCrop: CropRect | null = null
   private activeRequestId = 0
   private lastProcessedRequestId = 0
   private isWorkerBusy = false
 
-  constructor(private els: UiElements) {
+  private viewport!: ViewportManager
+  private selection!: SelectionManager
+
+  constructor(private els: ShellElements) {
     this.ctx = this.els.previewCanvas.getContext('2d', { willReadFrequently: true })!
     this.ctx.imageSmoothingEnabled = false
-    this.chartManager = new ChartManager(this.els.chartCanvas)
-    this.fullscreenChartManager = new ChartManager(this.els.fullscreenChartCanvas)
-    this.featuresRenderer = new FeaturesRenderer('tab-features')
+
     this.helpManager = new HelpManager('academic-help-container')
     new TooltipManager()
 
-    this.fullscreenModal = new FullscreenModal(
-      {
-        modal: this.els.fullscreenModal,
-        title: this.els.fullscreenTitle,
-        zoomInfo: this.els.fullscreenZoomInfo,
-        closeBtn: this.els.fullscreenCloseBtn,
-        resetBtn: this.els.fullscreenResetBtn,
-        mapViewport: this.els.fullscreenMapViewport,
-        mapCanvas: this.els.fullscreenMapCanvas,
-        chartContainer: this.els.fullscreenChartContainer,
-        chartCanvas: this.els.fullscreenChartCanvas,
-        mapPanel: this.els.fullscreenMapPanel,
-        chartPanel: this.els.fullscreenChartPanel,
-        mapTypeBtns: this.els.fsMapTypeBtns,
-        chartTypeBtns: this.els.fsChartTypeBtns,
-        chartYModeBtns: this.els.fsChartYModeBtns
-      },
-      {
-        onRenderMap: canvas => this.renderMapToCanvas(canvas),
-        onRenderChart: canvas => this.renderChartToCanvas(canvas),
-        onMapKindChange: mapKind => this.setActiveMapKind(mapKind as MapKind),
-        onChartKindChange: chartKind => this.setActiveChartKind(chartKind as ChartKind),
-        onChartYModeChange: yMode => this.setActiveChartYMode(yMode as ChartYMode),
-        getActiveMapKind: () => this.activeMapKind,
-        getActiveChartKind: () => this.activeChartKind,
-        getActiveChartYMode: () => this.activeChartYMode,
-        getMapTitle: () => MAP_VIEW_META[this.activeMapKind].title,
-        getChartTitle: () =>
-          this.activeChartKind === 'mscn'
-            ? 'Распределение MSCN'
-            : PAIRWISE_CHART_META[this.activeChartKind].xLabel
-      }
+    this.tabHost = new TabHost(this.els.qaTabsNav, this.els.qaTabsContainer, this.helpManager)
+    this.scorePresenter = new ScorePresenter(
+      this.els.scoreContainer,
+      this.els.scoreVal,
+      this.els.scoreLabel
     )
 
-    this.brisqueWorker = new Worker(new URL('./core/brisque/brisque.worker.ts', import.meta.url), {
-      type: 'module'
+    const fullscreenHost = new ShellFullscreenHost(this.els.fullscreen)
+    this.methodRegistry = createMethodRegistry()
+
+    this.methodSwitcher = new MethodSwitcher({
+      registry: this.methodRegistry,
+      tabHost: this.tabHost,
+      uiContext: {
+        previewCanvas: this.els.previewCanvas,
+        fullscreenHost
+      },
+      onUiReplaced: ui => {
+        this.activeUi = ui
+      }
     })
 
-    this.initWorker()
-    this.initTabs()
-    this.initMapControls()
-    this.initChartControls()
-    this.initFullscreenControls()
-    this.initCanvasExportMenu()
+    const { worker } = this.methodSwitcher.mountInitial()
+    this.worker = worker
+    this.activeUi = this.methodSwitcher.getActiveUi()
+    this.bindWorker()
+
+    new MethodSelector(this.els.methodSelectContainer, this.methodRegistry, id =>
+      this.switchMethod(id)
+    )
+
     this.initControls()
     this.helpManager.updateContext('empty')
-    this.updateFullscreenButtons()
   }
 
-  private initWorker(): void {
-    this.brisqueWorker.onmessage = (e: MessageEvent) => {
+  private bindWorker(): void {
+    this.worker.onmessage = (e: MessageEvent) => {
       this.isWorkerBusy = false
-      const response = e.data as BrisqueWorkerSuccess | BrisqueWorkerError
+      const response = e.data
+      const { method } = this.methodRegistry.getActive()
 
-      if (response.requestId < this.lastProcessedRequestId) {
-        if (this.pendingCrop) {
-          this.processPendingCrop()
-        }
+      const requestId = (response as { requestId?: number }).requestId ?? 0
+      if (requestId < this.lastProcessedRequestId) {
+        if (this.pendingCrop) this.processPendingCrop()
         return
       }
 
-      this.lastProcessedRequestId = response.requestId
+      this.lastProcessedRequestId = requestId
 
-      if (!response.success) {
-        console.error('Ошибка в воркере:', (response as BrisqueWorkerError).error)
+      const result = method.parseWorkerMessage(response)
+      if (!result) {
+        const err = method.getWorkerError(response)
+        if (err) console.error('Ошибка в воркере:', err)
+        this.lastResult = null
       } else {
-        this.lastPipelineData = response as BrisqueWorkerSuccess
-        this.onPipelineComplete(this.lastPipelineData)
+        this.lastResult = result
+        this.onAnalysisComplete(this.lastResult)
       }
 
-      if (this.pendingCrop) {
-        this.processPendingCrop()
-      }
+      if (this.pendingCrop) this.processPendingCrop()
     }
+  }
+
+  private switchMethod(methodId: string): void {
+    if (methodId === this.methodRegistry.getActiveId()) return
+
+    this.worker.terminate()
+    const session = resetAnalysisSession()
+    this.lastResult = session.lastResult
+    this.pendingCrop = session.pendingCrop
+    this.activeRequestId = session.activeRequestId
+    this.lastProcessedRequestId = session.lastProcessedRequestId
+    this.isWorkerBusy = session.isWorkerBusy
+
+    const { worker, rerender } = this.methodSwitcher.switchTo(methodId)
+    this.worker = worker
+    this.bindWorker()
+
+    this.scorePresenter.hide()
+    this.tabHost.dispatchResult(null)
+    this.helpManager.updateContext('empty')
+
+    const crop = this.selection?.getCrop()
+    if (rerender && crop && crop.w > 0 && crop.h > 0) {
+      this.runAnalysis()
+    } else {
+      this.tabHost.hide()
+    }
+  }
+
+  private onAnalysisComplete(result: AnalysisResult): void {
+    this.scorePresenter.show(result.score)
+    this.tabHost.dispatchResult(result)
   }
 
   private processPendingCrop(): void {
     const crop = this.pendingCrop
     this.pendingCrop = null
     if (!crop) return
-
-    const requestId = ++this.activeRequestId
-    this.sendWorkerRequest(crop, requestId)
-  }
-
-  /** Полный цикл после нового ответа воркера */
-  private onPipelineComplete(data: BrisqueWorkerSuccess): void {
-    this.featuresRenderer.render(data.features36)
-    this.updateScore(data.finalScore)
-    this.renderActiveMap()
-    this.renderActiveChart()
-    this.updateHelpContextForActiveTab()
-    this.updateFullscreenButtons()
-  }
-
-  private updateFullscreenButtons(): void {
-    const enabled = this.lastPipelineData !== null
-    this.els.fullscreenOpenBtns.forEach(btn => {
-      btn.disabled = !enabled
-    })
-  }
-
-  /** Перерисовка активной карты из кэша (без повторного пайплайна) */
-  private renderActiveMap(): void {
-    this.renderMapToCanvas(this.els.mapCanvas)
-  }
-
-  private renderMapToCanvas(canvas: HTMLCanvasElement): void {
-    const data = this.lastPipelineData
-    if (!data) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    canvas.width = data.width
-    canvas.height = data.height
-
-    const { width, height } = data
-    let imageData: ImageData | null = null
-
-    switch (this.activeMapKind) {
-      case 'mu':
-        imageData = this.mapRenderer.renderMu(data.mu, width, height)
-        break
-      case 'sigma':
-        imageData = this.mapRenderer.renderSigma(data.sigma, width, height)
-        break
-      case 'mscn':
-        imageData = this.mapRenderer.renderMscn(data.mscn, width, height)
-        break
-      default:
-        imageData = this.mapRenderer.renderPairwise(
-          data.pairwise[this.activeMapKind],
-          width,
-          height,
-          this.activeMapKind
-        )
-    }
-
-    ctx.putImageData(imageData, 0, 0)
-  }
-
-  private updateMapTitle(): void {
-    const meta = MAP_VIEW_META[this.activeMapKind]
-    this.els.mapTitleLabel.textContent = meta.title
-    this.els.mapTitleHint.dataset.hint = meta.hint
-  }
-
-  private setActiveMapKind(mapKind: MapKind): void {
-    this.activeMapKind = mapKind
-    this.els.mapTypeBtns.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.map === mapKind)
-    })
-    this.updateMapTitle()
-    this.renderActiveMap()
-  }
-
-  private initMapControls(): void {
-    this.els.mapTypeBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const mapKind = btn.dataset.map as MapKind | undefined
-        if (!mapKind) return
-        this.setActiveMapKind(mapKind)
-      })
-    })
-  }
-
-  /** Перерисовка активного графика из кэша */
-  private renderActiveChart(): void {
-    this.renderChartToCanvas(this.els.chartCanvas)
-  }
-
-  private renderChartToCanvas(canvas: HTMLCanvasElement): void {
-    const data = this.lastPipelineData
-    if (!data) return
-
-    const manager = canvas === this.els.fullscreenChartCanvas
-      ? this.fullscreenChartManager
-      : this.chartManager
-    const yMode = this.activeChartYMode
-
-    if (this.activeChartKind === 'mscn') {
-      manager.drawMscnHistogram(data.mscn, readGgdFit(data.features36, 0), yMode)
-      return
-    }
-
-    const meta = PAIRWISE_CHART_META[this.activeChartKind]
-    manager.drawPairwiseHistogram(
-      data.pairwise[this.activeChartKind],
-      meta.xLabel,
-      readAggdFit(data.features36, meta.featureOffset),
-      yMode
-    )
-  }
-
-  private setActiveChartKind(chartKind: ChartKind): void {
-    this.activeChartKind = chartKind
-    this.els.chartTypeBtns.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.chart === chartKind)
-    })
-    this.renderActiveChart()
-  }
-
-  private setActiveChartYMode(yMode: ChartYMode): void {
-    this.activeChartYMode = yMode
-    this.els.chartYModeBtns.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.yMode === yMode)
-    })
-    this.renderActiveChart()
-  }
-
-  private initChartControls(): void {
-    this.els.chartTypeBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const chartKind = btn.dataset.chart as ChartKind | undefined
-        if (!chartKind) return
-        this.setActiveChartKind(chartKind)
-      })
-    })
-
-    this.els.chartYModeBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const yMode = btn.dataset.yMode as ChartYMode | undefined
-        if (!yMode) return
-        this.setActiveChartYMode(yMode)
-      })
-    })
-  }
-
-  private initFullscreenControls(): void {
-    this.els.fullscreenOpenBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (!this.lastPipelineData) return
-        const mode = btn.dataset.fullscreen as FullscreenMode | undefined
-        if (mode) this.fullscreenModal.open(mode)
-      })
-    })
-
-    window.addEventListener('resize', () => {
-      this.fullscreenModal.onResize()
-    })
-  }
-
-  private initCanvasExportMenu(): void {
-    const menu = new CanvasContextMenu()
-
-    const attach = (
-      container: HTMLElement | null,
-      resolve: () => { canvas: HTMLCanvasElement; filename: string } | null
-    ): void => {
-      if (container) menu.attach(container, resolve)
-    }
-
-    attach(this.els.previewCanvas.parentElement, () => this.exportTarget(this.els.previewCanvas, 'crop'))
-    attach(this.els.mapCanvas.parentElement, () => this.exportTarget(this.els.mapCanvas, 'map'))
-    attach(this.els.chartCanvas.parentElement, () => this.exportTarget(this.els.chartCanvas, 'chart'))
-    attach(this.els.fullscreenMapViewport, () =>
-      this.exportTarget(this.els.fullscreenMapCanvas, 'map')
-    )
-    attach(this.els.fullscreenChartContainer, () =>
-      this.exportTarget(this.els.fullscreenChartCanvas, 'chart')
-    )
-  }
-
-  private exportTarget(
-    canvas: HTMLCanvasElement,
-    kind: 'crop' | 'map' | 'chart'
-  ): { canvas: HTMLCanvasElement; filename: string } | null {
-    if (canvas.width <= 0 || canvas.height <= 0) return null
-    if (kind !== 'crop' && !this.lastPipelineData) return null
-
-    const { width, height } = canvas
-    let filename: string
-
-    switch (kind) {
-      case 'crop':
-        filename = `brisque-crop-${width}x${height}.png`
-        break
-      case 'map':
-        filename = `brisque-map-${this.activeMapKind}-${width}x${height}.png`
-        break
-      case 'chart':
-        filename = `brisque-chart-${this.activeChartKind}-${this.activeChartYMode}.png`
-        break
-    }
-
-    return { canvas, filename }
-  }
-
-  private initTabs(): void {
-    this.els.tabBtns.forEach(btn => {
-      btn.addEventListener('click', event => {
-        const targetId = (event.target as HTMLElement).dataset.target as HelpTabKey | undefined
-        if (!targetId) return
-
-        this.els.tabBtns.forEach(button => button.classList.remove('active'))
-        this.els.tabContents.forEach(content => content.classList.remove('active'))
-        ;(event.target as HTMLElement).classList.add('active')
-        document.getElementById(targetId)?.classList.add('active')
-
-        this.helpManager.updateContext(targetId)
-
-        if (targetId === 'tab-maps') {
-          this.renderActiveMap()
-        } else if (targetId === 'tab-charts') {
-          this.renderActiveChart()
-        }
-      })
-    })
-  }
-
-  private updateHelpContextForActiveTab(): void {
-    const activeTab = Array.from(this.els.tabBtns).find(btn => btn.classList.contains('active'))
-      ?.dataset.target as HelpTabKey | undefined
-
-    if (activeTab) {
-      this.helpManager.updateContext(activeTab)
-    }
+    this.sendWorkerRequest(crop, ++this.activeRequestId)
   }
 
   private initControls(): void {
@@ -439,30 +184,26 @@ export class AppController {
       () => this.viewport.getZoom(),
       crop => {
         this.updateOriginalPreview(crop)
-        this.runBrisquePipeline()
+        this.runAnalysis()
       },
-      () => this.runBrisquePipeline()
+      () => this.runAnalysis()
     )
 
     new SidebarController(this.els.sidebar, this.els.resizer, () => {
-      this.renderActiveMap()
-      this.renderActiveChart()
-      this.fullscreenModal.onResize()
+      this.tabHost.refreshActivePanel()
+      this.activeUi.onSidebarResize()
     })
   }
 
   private updateOriginalPreview(crop: CropRect): void {
     if (crop.w === 0 || crop.h === 0) {
       this.els.selectionInfo.innerText = 'Размер: 0 x 0 px'
-      this.els.scoreContainer.style.display = 'none'
-      this.els.scoreVal.textContent = ''
-      this.els.scoreVal.classList.remove('score-good', 'score-medium', 'score-bad')
+      this.scorePresenter.hide()
       this.ctx.clearRect(0, 0, this.els.previewCanvas.width, this.els.previewCanvas.height)
-      this.els.qaTabsNav.style.display = 'none'
-      this.els.qaTabsContainer.style.display = 'none'
-      this.lastPipelineData = null
+      this.tabHost.hide()
+      this.lastResult = null
+      this.tabHost.dispatchResult(null)
       this.helpManager.updateContext('empty')
-      this.updateFullscreenButtons()
       return
     }
 
@@ -472,20 +213,7 @@ export class AppController {
     this.ctx.drawImage(this.els.targetImage, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h)
   }
 
-  private updateScore(finalScore: number): void {
-    this.els.scoreContainer.style.display = 'block'
-    this.els.scoreVal.textContent = finalScore.toFixed(2)
-    this.els.scoreVal.classList.remove('score-good', 'score-medium', 'score-bad')
-    if (finalScore < 30) {
-      this.els.scoreVal.classList.add('score-good')
-    } else if (finalScore < 60) {
-      this.els.scoreVal.classList.add('score-medium')
-    } else {
-      this.els.scoreVal.classList.add('score-bad')
-    }
-  }
-
-  private runBrisquePipeline(): void {
+  private runAnalysis(): void {
     const crop = this.selection.getCrop()
     if (crop.w <= 0 || crop.h <= 0) return
 
@@ -494,28 +222,20 @@ export class AppController {
       return
     }
 
-    const requestId = ++this.activeRequestId
-    this.sendWorkerRequest(crop, requestId)
+    this.sendWorkerRequest(crop, ++this.activeRequestId)
   }
 
   private sendWorkerRequest(crop: CropRect, requestId: number): void {
-    this.els.qaTabsNav.style.display = 'flex'
-    this.els.qaTabsContainer.style.display = 'block'
-    this.updateHelpContextForActiveTab()
-    this.els.mapCanvas.width = crop.w
-    this.els.mapCanvas.height = crop.h
+    this.tabHost.show()
+    const ctx = this.tabHost.getActiveHelpContext()
+    if (ctx) this.helpManager.updateContext(ctx)
 
     try {
       const imageData = this.ctx.getImageData(0, 0, crop.w, crop.h)
       const rgbaArray = imageData.data
       this.isWorkerBusy = true
-      this.brisqueWorker.postMessage(
-        {
-          rgbaArray,
-          width: crop.w,
-          height: crop.h,
-          requestId
-        },
+      this.worker.postMessage(
+        { rgbaArray, width: crop.w, height: crop.h, requestId },
         [rgbaArray.buffer]
       )
     } catch (error) {

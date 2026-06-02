@@ -28,6 +28,46 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.method-select-container {
+  display: flex;
+  align-items: center;
+}
+
+.method-select-label {
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.method-select {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.placeholder-method-box {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.placeholder-method-box p {
+  margin: 0 0 10px;
+}
+
+.placeholder-method-box p:last-child {
+  margin-bottom: 0;
+}
+
 .hint {
   font-size: 12px;
   color: var(--muted-2);
@@ -237,6 +277,18 @@ button:hover {
 .features-wrapper {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+/* ================= CROP PREVIEW (оболочка) ================= */
+.sidebar-crop-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-crop-preview .preview-container {
+  height: min(200px, calc(100vh - 520px));
+  min-height: 120px;
 }
 
 /* ================= КАРТЫ И ПРЕВЬЮ ================= */

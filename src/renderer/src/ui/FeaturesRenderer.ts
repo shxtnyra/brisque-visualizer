@@ -19,9 +19,13 @@ const ROWS: FeatureRow[] = [
 export class FeaturesRenderer {
   private container: HTMLElement
 
-  constructor(containerId: string) {
-    const element = document.getElementById(containerId)
-    if (!element) throw new Error(`Container #${containerId} not found`)
+  constructor(container: string | HTMLElement) {
+    const element =
+      typeof container === 'string' ? document.getElementById(container) : container
+    if (!element) {
+      const hint = typeof container === 'string' ? `#${container}` : '<element>'
+      throw new Error(`Container ${hint} not found`)
+    }
     this.container = element
   }
 

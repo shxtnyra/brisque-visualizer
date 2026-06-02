@@ -1,5 +1,5 @@
 import { renderLatex } from './MathUtils'
-import { HelpTabKey } from '../types'
+import { HelpContextKey } from '../shell/types'
 
 interface HelpTopic {
   title: string
@@ -38,12 +38,18 @@ export class HelpManager {
       interpretation:
         'Эти признаки описывают пространственную корреляцию пикселей. Полученный вектор из 36 чисел затем передается в модель SVR для получения финальной оценки качества снимка.'
     },
+    'tab-placeholder': {
+      title: 'NIQE (в разработке)',
+      description:
+        'Этот режим — заглушка для проверки переключения методов. Полный пайплайн NIQE и свои панели визуализации будут добавлены отдельным плагином.',
+      interpretation: 'Переключите метод на BRISQUE в toolbar для текущего функционала.'
+    },
     empty: {
       title: 'Выделите область для анализа',
       description:
-        'Чтобы начать BRISQUE-анализ, выберите область на изображении левой кнопкой мыши. Двойной клик выделяет всё изображение.',
+        'Выберите метод в toolbar и область на изображении левой кнопкой мыши. Двойной клик выделяет всё изображение.',
       interpretation:
-        'После выделения область будет обработана, и справа появятся карты, гистограммы и таблица признаков.'
+        'После выделения область будет обработана активным методом, и справа появятся его вкладки визуализации.'
     }
   }
 
@@ -57,7 +63,7 @@ export class HelpManager {
    * Динамически обновляет блок теории при переключении вкладок.
    * @param tabId Идентификатор вкладки помощи.
    */
-  public updateContext(tabId: HelpTabKey): void {
+  public updateContext(tabId: HelpContextKey): void {
     const topic = this.topics[tabId]
     if (!topic) {
       this.container.innerHTML = ''
