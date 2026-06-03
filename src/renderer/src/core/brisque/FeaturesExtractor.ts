@@ -159,7 +159,7 @@ export class FeaturesExtractor {
     let variance = 0
     let meanAbsolute = 0
 
-    // Считаем моменты исходя из предположения, что Mean строго равен 0 (согласно статье для MSCN)
+    // Считаем моменты исходя из предположения, что Mean строго равен 0
     for (let i = 0; i < len; i++) {
       const val = arr[i]
       variance += val * val

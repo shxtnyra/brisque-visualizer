@@ -68,8 +68,8 @@ export class MscnEngine {
    * Вычислительная сложность O(N) инвариантна к радиусу фильтра.
    */
   /**
-   * Применяет раздельный (separable) гауссов фильтр: горизонтальная и вертикальная
-   * проливки с использованием одномерного ядра. Работает за O(N).
+   * Применяет раздельный (separable) гауссов фильтр: горизонтальные и вертикальные
+   * проходы с использованием одномерного ядра. Работает за O(N).
    * @param input Входный массив.
    * @param output Выходной массив (того же размера).
    * @param width Ширина изображения.
@@ -85,7 +85,6 @@ export class MscnEngine {
     radius: number,
     temp: Float32Array
   ): void {
-    // Use a separable Gaussian kernel sampled out to the given radius.
     const size = radius * 2 + 1
     const sigma = 7.0 / 6.0
     const kernel = new Float32Array(size)
@@ -95,10 +94,9 @@ export class MscnEngine {
       kernel[i + radius] = v
       sumK += v
     }
-    // normalize
     for (let i = 0; i < size; i++) kernel[i] /= sumK
 
-    // Horizontal pass
+    // Горизонтальный проход
     for (let y = 0; y < height; y++) {
       const rowOffset = y * width
       for (let x = 0; x < width; x++) {
@@ -111,7 +109,7 @@ export class MscnEngine {
       }
     }
 
-    // Vertical pass
+    // Вертикальынй проход
     for (let x = 0; x < width; x++) {
       for (let y = 0; y < height; y++) {
         let s = 0
