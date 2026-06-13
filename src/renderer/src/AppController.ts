@@ -1,8 +1,10 @@
 import { ViewportManager } from './ui/ViewportManager'
 import { SelectionManager } from './ui/SelectionManager'
-import { HelpManager } from './ui/HelpManager'
+import { HelpPanel } from './ui/HelpPanel'
 import { TooltipManager } from './ui/TooltipManager'
+import { registerAppContent } from './methods/registerAppContent'
 import { SidebarController } from './ui/SidebarController'
+import { CanvasContextMenu } from './ui/CanvasContextMenu'
 import { CropRect } from './types'
 import { TabHost } from './shell/TabHost'
 import { ScorePresenter } from './shell/ScorePresenter'
@@ -10,8 +12,7 @@ import { AnalysisResult } from './shell/types'
 import { MethodRegistry } from './shell/MethodRegistry'
 import { MethodUiPlugin } from './shell/QualityMethod'
 import { createMethodRegistry } from './methods/registerMethods'
-import { FullscreenModalElements } from './ui/FullscreenModal'
-import { ShellFullscreenHost } from './shell/ShellFullscreenHost'
+import { FullscreenShellElements, FullscreenView } from './ui/FullscreenView'
 import { MethodSwitcher, resetAnalysisSession } from './shell/MethodSwitcher'
 import { MethodSelector } from './shell/MethodSelector'
 
@@ -33,7 +34,7 @@ export interface ShellElements {
   resizer: HTMLDivElement
   qaTabsNav: HTMLDivElement
   qaTabsContainer: HTMLDivElement
-  fullscreen: FullscreenModalElements
+  fullscreen: FullscreenShellElements
 }
 
 /**
@@ -42,7 +43,7 @@ export interface ShellElements {
 export class AppController {
   private ctx: CanvasRenderingContext2D
   private worker!: Worker
-  private helpManager: HelpManager
+  private helpPanel: HelpPanel
   private tabHost: TabHost
   private scorePresenter: ScorePresenter
   private methodRegistry: MethodRegistry
@@ -62,17 +63,19 @@ export class AppController {
     this.ctx = this.els.previewCanvas.getContext('2d', { willReadFrequently: true })!
     this.ctx.imageSmoothingEnabled = false
 
-    this.helpManager = new HelpManager('academic-help-container')
-    new TooltipManager()
+    this.helpPanel = new HelpPanel('academic-help-container')
+    const tooltipManager = new TooltipManager()
+    registerAppContent(this.helpPanel, tooltipManager)
 
-    this.tabHost = new TabHost(this.els.qaTabsNav, this.els.qaTabsContainer, this.helpManager)
+    this.tabHost = new TabHost(this.els.qaTabsNav, this.els.qaTabsContainer, this.helpPanel)
     this.scorePresenter = new ScorePresenter(
       this.els.scoreContainer,
       this.els.scoreVal,
       this.els.scoreLabel
     )
 
-    const fullscreenHost = new ShellFullscreenHost(this.els.fullscreen)
+    const fullscreen = new FullscreenView(this.els.fullscreen)
+    const exportMenu = new CanvasContextMenu()
     this.methodRegistry = createMethodRegistry()
 
     this.methodSwitcher = new MethodSwitcher({
@@ -80,7 +83,8 @@ export class AppController {
       tabHost: this.tabHost,
       uiContext: {
         previewCanvas: this.els.previewCanvas,
-        fullscreenHost
+        fullscreen,
+        exportMenu
       },
       onUiReplaced: ui => {
         this.activeUi = ui
@@ -97,7 +101,7 @@ export class AppController {
     )
 
     this.initControls()
-    this.helpManager.updateContext('empty')
+    this.helpPanel.updateContext('empty')
   }
 
   private bindWorker(): void {
@@ -119,6 +123,8 @@ export class AppController {
         const err = method.getWorkerError(response)
         if (err) console.error('Ошибка в воркере:', err)
         this.lastResult = null
+        this.scorePresenter.hide()
+        this.tabHost.dispatchResult(null)
       } else {
         this.lastResult = result
         this.onAnalysisComplete(this.lastResult)
@@ -145,7 +151,7 @@ export class AppController {
 
     this.scorePresenter.hide()
     this.tabHost.dispatchResult(null)
-    this.helpManager.updateContext('empty')
+    this.helpPanel.updateContext('empty')
 
     const crop = this.selection?.getCrop()
     if (rerender && crop && crop.w > 0 && crop.h > 0) {
@@ -203,7 +209,7 @@ export class AppController {
       this.tabHost.hide()
       this.lastResult = null
       this.tabHost.dispatchResult(null)
-      this.helpManager.updateContext('empty')
+      this.helpPanel.updateContext('empty')
       return
     }
 
@@ -228,7 +234,7 @@ export class AppController {
   private sendWorkerRequest(crop: CropRect, requestId: number): void {
     this.tabHost.show()
     const ctx = this.tabHost.getActiveHelpContext()
-    if (ctx) this.helpManager.updateContext(ctx)
+    if (ctx) this.helpPanel.updateContext(ctx)
 
     try {
       const imageData = this.ctx.getImageData(0, 0, crop.w, crop.h)

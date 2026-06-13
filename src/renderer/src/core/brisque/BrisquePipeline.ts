@@ -3,7 +3,7 @@
  * качества изображения. Включает многомасштабный анализ (Scale 1 / Scale 2)
  * и финальную SVR-регрессию для получения итоговой оценки.
  */
-import { BufferPool } from './BufferPool'
+import { BufferPool } from '../shared/BufferPool'
 import { MscnEngine, MscnOutput } from './MscnEngine'
 import { PairwiseEngine, PairwiseOutput } from './PairwiseEngine'
 import { FeaturesExtractor } from './FeaturesExtractor'
@@ -68,8 +68,6 @@ export class BrisquePipeline {
 
     // Шаг 6. SVR Регрессия — превращение вектора в оценку DMOS
     const finalScore = this.regressor.predict(features36)
-
-    console.log('Запустили')
 
     return {
       scale1Mscn,

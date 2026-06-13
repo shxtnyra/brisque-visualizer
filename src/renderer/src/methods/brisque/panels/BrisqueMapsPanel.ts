@@ -1,7 +1,7 @@
-import { MapRenderer } from '../../../ui/MapRenderer'
+import { MapRenderer } from '../visualizers/MapRenderer'
 import { AnalysisResult, SidebarPanel } from '../../../shell/types'
 import { BrisquePayload } from '../brisquePayload'
-import { MAP_VIEW_META, MapKind } from '../../../types'
+import { MAP_VIEW_META, MapKind } from '../types'
 
 const MAP_KINDS: MapKind[] = ['mu', 'sigma', 'mscn', 'horizontal', 'vertical', 'diagonal1', 'diagonal2']
 

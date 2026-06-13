@@ -12,10 +12,7 @@ const ROWS: FeatureRow[] = [
   { label: 'Диагональ 2', values: [14, 15, 16, 17] }
 ]
 
-/**
- * Отвечает за визуализацию табличного представления 36 признаков BRISQUE.
- * Формирует HTML-таблицы с разделением по масштабам и направлениям попарных произведений.
- */
+/** Таблица 36 признаков BRISQUE (два масштаба). */
 export class FeaturesRenderer {
   private container: HTMLElement
 
@@ -29,10 +26,6 @@ export class FeaturesRenderer {
     this.container = element
   }
 
-  /**
-   * Рендерит HTML таблицы признаков для двух масштабов (0 и 18 смещений).
-   * @param features 36-мерный вектор признаков.
-   */
   public render(features: Float32Array): void {
     if (features.length !== 36) return
 

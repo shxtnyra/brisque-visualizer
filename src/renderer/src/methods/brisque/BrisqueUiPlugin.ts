@@ -1,87 +1,72 @@
-import { ChartManager } from '../../ui/ChartManager'
-import { FullscreenCallbacks } from '../../ui/FullscreenModal'
 import { CanvasContextMenu } from '../../ui/CanvasContextMenu'
 import { MethodUiContext, MethodUiPlugin } from '../../shell/QualityMethod'
-import { FullscreenProvider, ShellFullscreenHost } from '../../shell/ShellFullscreenHost'
+import { FullscreenView } from '../../ui/FullscreenView'
 import { SidebarPanel } from '../../shell/types'
-import { MapKind, ChartKind, ChartYMode } from '../../types'
 import { BrisqueMapsPanel } from './panels/BrisqueMapsPanel'
 import { BrisqueChartsPanel } from './panels/BrisqueChartsPanel'
 import { BrisqueFeaturesPanel } from './panels/BrisqueFeaturesPanel'
+import { mountChartFullscreen, mountMapFullscreen } from './brisqueFullscreenMount'
 
-/**
- * UI-плагин BRISQUE: три вкладки сайдбара + fullscreen + экспорт canvas.
- */
-export class BrisqueUiPlugin implements MethodUiPlugin, FullscreenProvider {
+/** UI-плагин BRISQUE: три вкладки сайдбара + fullscreen + экспорт canvas. */
+export class BrisqueUiPlugin implements MethodUiPlugin {
   readonly panels: SidebarPanel[]
 
   private mapsPanel = new BrisqueMapsPanel()
   private chartsPanel = new BrisqueChartsPanel()
   private featuresPanel = new BrisqueFeaturesPanel()
-  private fullscreenHost: ShellFullscreenHost
-  private fullscreenChartManager: ChartManager
+  private fullscreen: FullscreenView
   private abort = new AbortController()
-  private exportMenu: CanvasContextMenu | null = null
+  private exportMenu: CanvasContextMenu
 
   constructor(ctx: MethodUiContext) {
     this.panels = [this.mapsPanel, this.chartsPanel, this.featuresPanel]
-    this.fullscreenHost = ctx.fullscreenHost
-    const fsCanvas = document.getElementById('fullscreen-chart-canvas') as HTMLCanvasElement
-    this.fullscreenChartManager = new ChartManager(fsCanvas)
-  }
-
-  getFullscreenCallbacks(): FullscreenCallbacks {
-    return {
-      onRenderMap: canvas => this.mapsPanel.renderMapToCanvas(canvas),
-      onRenderChart: canvas => {
-        const manager =
-          canvas.id === 'fullscreen-chart-canvas'
-            ? this.fullscreenChartManager
-            : this.chartsPanel.createChartManager(canvas)
-        this.chartsPanel.renderChartToCanvas(canvas, manager)
-      },
-      onMapKindChange: mapKind => this.mapsPanel.setMapKind(mapKind as MapKind),
-      onChartKindChange: chartKind => this.chartsPanel.setChartKind(chartKind as ChartKind),
-      onChartYModeChange: yMode => this.chartsPanel.setChartYMode(yMode as ChartYMode),
-      getActiveMapKind: () => this.mapsPanel.getActiveMapKind(),
-      getActiveChartKind: () => this.chartsPanel.getActiveChartKind(),
-      getActiveChartYMode: () => this.chartsPanel.getActiveChartYMode(),
-      getMapTitle: () => this.mapsPanel.getMapTitle(),
-      getChartTitle: () => this.chartsPanel.getChartTitle()
-    }
+    this.fullscreen = ctx.fullscreen
+    this.exportMenu = ctx.exportMenu
   }
 
   onSidebarResize(): void {
     this.panels.forEach(p => p.onSidebarResize?.())
-    this.fullscreenHost.onResize()
+    this.fullscreen.onResize()
   }
 
   initFullscreenControls(): void {
     const signal = this.abort.signal
-    this.fullscreenHost.setProvider(this)
-
     const mapBtn = this.mapsPanel.getFullscreenButton()
     const chartBtn = this.chartsPanel.getFullscreenButton()
+
     mapBtn?.addEventListener(
       'click',
       () => {
         if (mapBtn.disabled) return
-        this.fullscreenHost.open('map')
+        this.fullscreen.open({
+          title: this.mapsPanel.getMapTitle(),
+          hint: 'Колесо — масштаб | ЛКМ — перемещение | Двойной клик — сброс | Esc — закрыть',
+          showZoom: true,
+          showReset: true,
+          onMount: hosts => mountMapFullscreen(this.mapsPanel, hosts)
+        })
       },
       { signal }
     )
+
     chartBtn?.addEventListener(
       'click',
       () => {
         if (chartBtn.disabled) return
-        this.fullscreenHost.open('chart')
+        this.fullscreen.open({
+          title: this.chartsPanel.getChartTitle(),
+          hint: 'Esc — закрыть',
+          showZoom: false,
+          showReset: false,
+          onMount: hosts => mountChartFullscreen(this.chartsPanel, hosts)
+        })
       },
       { signal }
     )
   }
 
   initCanvasExportMenu(previewCanvas: HTMLCanvasElement): void {
-    this.exportMenu = new CanvasContextMenu()
+    this.exportMenu.detachAll()
     const menu = this.exportMenu
 
     const attach = (
@@ -111,23 +96,21 @@ export class BrisqueUiPlugin implements MethodUiPlugin, FullscreenProvider {
       return filename ? { canvas, filename } : null
     })
 
-    attach(document.getElementById('fullscreen-map-viewport'), () => {
-      const canvas = document.getElementById('fullscreen-map-canvas') as HTMLCanvasElement
-      const filename = this.mapsPanel.exportFilename(canvas)
-      return filename ? { canvas, filename } : null
-    })
-
-    attach(document.getElementById('fullscreen-chart-container'), () => {
-      const canvas = document.getElementById('fullscreen-chart-canvas') as HTMLCanvasElement
-      const filename = this.chartsPanel.exportFilename(canvas)
-      return filename ? { canvas, filename } : null
+    attach(this.fullscreen.bodyHost, () => {
+      if (!this.fullscreen.isOpen()) return null
+      const canvas = this.fullscreen.bodyHost.querySelector('canvas')
+      if (!canvas) return null
+      const mapName = this.mapsPanel.exportFilename(canvas)
+      if (mapName) return { canvas, filename: mapName }
+      const chartName = this.chartsPanel.exportFilename(canvas)
+      return chartName ? { canvas, filename: chartName } : null
     })
   }
 
   dispose(): void {
     this.abort.abort()
-    this.fullscreenHost.setProvider(null)
-    this.exportMenu = null
+    this.fullscreen.close()
+    this.exportMenu.detachAll()
     this.panels.forEach(p => p.destroy())
   }
 }

@@ -1,5 +1,5 @@
 import { AppController, ShellElements } from './AppController'
-import { FullscreenModalElements } from './ui/FullscreenModal'
+import { FullscreenShellElements } from './ui/FullscreenView'
 
 /**
  * Точка входа renderer-процесса: собирает DOM оболочки и инициализирует AppController.
@@ -18,29 +18,15 @@ function requireElement<T extends HTMLElement>(id: string): T {
   return el as T
 }
 
-function requireElements<T extends HTMLElement>(selector: string): NodeListOf<T> {
-  const nodes = document.querySelectorAll(selector)
-  if (nodes.length === 0) {
-    throw new Error(`DOM: не найдены элементы "${selector}"`)
-  }
-  return nodes as NodeListOf<T>
-}
-
-const fullscreen: FullscreenModalElements = {
+const fullscreen: FullscreenShellElements = {
   modal: requireElement('fullscreen-modal'),
   title: requireElement('fullscreen-title'),
   zoomInfo: requireElement('fullscreen-zoom-info'),
   closeBtn: requireElement('fullscreen-close-btn'),
   resetBtn: requireElement('fullscreen-reset-btn'),
-  mapViewport: requireElement('fullscreen-map-viewport'),
-  mapCanvas: requireElement('fullscreen-map-canvas'),
-  chartContainer: requireElement('fullscreen-chart-container'),
-  chartCanvas: requireElement('fullscreen-chart-canvas'),
-  mapPanel: requireElement('fullscreen-map-panel'),
-  chartPanel: requireElement('fullscreen-chart-panel'),
-  mapTypeBtns: requireElements('.fs-map-type-btn'),
-  chartTypeBtns: requireElements('.fs-chart-type-btn'),
-  chartYModeBtns: requireElements('.fs-chart-y-mode-btn')
+  toolbarHost: requireElement('fullscreen-toolbar-host'),
+  bodyHost: requireElement('fullscreen-body-host'),
+  hint: requireElement('fullscreen-hint')
 }
 
 const els: ShellElements = {
@@ -64,3 +50,5 @@ const els: ShellElements = {
 }
 
 new AppController(els)
+
+console.log('renderer.ts loaded')

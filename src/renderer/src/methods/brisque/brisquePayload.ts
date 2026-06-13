@@ -1,4 +1,4 @@
-import { PairwiseMaps, BrisqueWorkerSuccess } from '../../types'
+import { PairwiseMaps, BrisqueWorkerSuccess } from './types'
 import { AnalysisResult } from '../../shell/types'
 
 /** Данные BRISQUE для визуализаций (масштаб 1) */

@@ -1,4 +1,4 @@
-import { ChartManager } from '../../../ui/ChartManager'
+import { ChartManager } from '../visualizers/ChartManager'
 import { AnalysisResult, SidebarPanel } from '../../../shell/types'
 import { BrisquePayload } from '../brisquePayload'
 import {
@@ -7,7 +7,7 @@ import {
   PAIRWISE_CHART_META,
   readGgdFit,
   readAggdFit
-} from '../../../types'
+} from '../types'
 
 const CHART_KINDS: ChartKind[] = ['mscn', 'horizontal', 'vertical', 'diagonal1', 'diagonal2']
 

@@ -1,5 +1,6 @@
 import { AnalysisResult, SidebarPanel } from './types'
-import { ShellFullscreenHost } from './ShellFullscreenHost'
+import { CanvasContextMenu } from '../ui/CanvasContextMenu'
+import { FullscreenView } from '../ui/FullscreenView'
 
 /** Вход воркера: RGBA crop + id запроса */
 export interface ImageCropInput {
@@ -21,7 +22,9 @@ export interface QualityMethod {
 
 export interface MethodUiContext {
   previewCanvas: HTMLCanvasElement
-  fullscreenHost: ShellFullscreenHost
+  fullscreen: FullscreenView
+  /** Общее меню экспорта PNG; плагин вызывает detachAll в dispose */
+  exportMenu: CanvasContextMenu
 }
 
 /** UI-плагин метода: вкладки сайдбара и вспомогательные контролы */

@@ -1,0 +1,55 @@
+% !TeX encoding = windows-1251
+% !TEX root = diplExample.tex
+
+\chapter{ онтракты модульной архитектуры}
+\label{app:contracts}
+
+\begin{lstlisting}[style=TypeScript, firstnumber=1]
+/** ¬ычислительный метод (воркер + разбор ответа) */
+export interface QualityMethod {
+  readonly id: string
+  readonly displayName: string
+  createWorker(): Worker
+  parseWorkerMessage(data: unknown): AnalysisResult | null
+  getWorkerError(data: unknown): string | null
+}
+
+export interface MethodUiContext {
+  previewCanvas: HTMLCanvasElement
+  fullscreen: FullscreenView
+  exportMenu: CanvasContextMenu
+}
+
+/** UI-плагин метода: вкладки сайдбара и вспомогательные контролы */
+export interface MethodUiPlugin {
+  readonly panels: SidebarPanel[]
+  initFullscreenControls(): void
+  initCanvasExportMenu(previewCanvas: HTMLCanvasElement): void
+  onSidebarResize(): void
+  dispose(): void
+}
+
+export interface RegisteredMethod {
+  method: QualityMethod
+  createUi: (ctx: MethodUiContext) => MethodUiPlugin
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=TypeScript, firstnumber=1]
+export function createMethodRegistry(): MethodRegistry {
+  const registry = new MethodRegistry()
+
+  registry.register({
+    method: new BrisqueQualityMethod(),
+    createUi: ctx => new BrisqueUiPlugin(ctx)
+  })
+
+  registry.register({
+    method: new PlaceholderQualityMethod(),
+    createUi: _ctx => new PlaceholderUiPlugin()
+  })
+
+  registry.setActive('brisque')
+  return registry
+}
+\end{lstlisting}

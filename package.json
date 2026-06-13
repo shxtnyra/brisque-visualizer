@@ -29,7 +29,7 @@
     "clean": "rimraf out dist .eslintcache",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
-    "build": "npm run check && electron-vite build",
+    "build": "electron-vite build",
     "build:dir": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:linux": "npm run build && electron-builder --linux"

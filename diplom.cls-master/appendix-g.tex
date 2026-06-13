@@ -1,0 +1,49 @@
+% !TeX encoding = windows-1251
+% !TEX root = diplExample.tex
+
+\chapter{Оркестрация анализа ROI в AppController}
+\label{app:orchestration}
+
+\begin{lstlisting}[style=TypeScript, firstnumber=107]
+  private bindWorker(): void {
+    this.worker.onmessage = (e: MessageEvent) => {
+      this.isWorkerBusy = false
+      const response = e.data
+      const { method } = this.methodRegistry.getActive()
+
+      const requestId = (response as { requestId?: number }).requestId ?? 0
+      if (requestId < this.lastProcessedRequestId) {
+        if (this.pendingCrop) this.processPendingCrop()
+        return
+      }
+
+      this.lastProcessedRequestId = requestId
+      const result = method.parseWorkerMessage(response)
+      // ... обновление score и вкладок ...
+
+      if (this.pendingCrop) this.processPendingCrop()
+    }
+  }
+
+  private runAnalysis(): void {
+    const crop = this.selection.getCrop()
+    if (crop.w <= 0 || crop.h <= 0) return
+
+    if (this.isWorkerBusy) {
+      this.pendingCrop = crop
+      return
+    }
+
+    this.sendWorkerRequest(crop, ++this.activeRequestId)
+  }
+
+  private sendWorkerRequest(crop: CropRect, requestId: number): void {
+    const imageData = this.ctx.getImageData(0, 0, crop.w, crop.h)
+    const rgbaArray = imageData.data
+    this.isWorkerBusy = true
+    this.worker.postMessage(
+      { rgbaArray, width: crop.w, height: crop.h, requestId },
+      [rgbaArray.buffer]
+    )
+  }
+\end{lstlisting}

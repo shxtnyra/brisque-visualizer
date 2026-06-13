@@ -1,6 +1,6 @@
 import { QualityMethod } from '../../shell/QualityMethod'
 import { AnalysisResult } from '../../shell/types'
-import { BrisqueWorkerSuccess, BrisqueWorkerError } from '../../types'
+import { BrisqueWorkerSuccess, BrisqueWorkerError } from './types'
 import { analysisResultFromWorker } from './brisquePayload'
 
 /**
@@ -11,7 +11,7 @@ export class BrisqueQualityMethod implements QualityMethod {
   readonly displayName = 'BRISQUE'
 
   createWorker(): Worker {
-    return new Worker(new URL('../../core/brisque/brisque.worker.ts', import.meta.url), {
+    return new Worker(new URL('./brisque.worker.ts', import.meta.url), {
       type: 'module'
     })
   }

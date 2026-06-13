@@ -1,4 +1,4 @@
-import { FeaturesRenderer } from '../../../ui/FeaturesRenderer'
+import { FeaturesRenderer } from '../visualizers/FeaturesRenderer'
 import { AnalysisResult, SidebarPanel } from '../../../shell/types'
 import { BrisquePayload } from '../brisquePayload'
 

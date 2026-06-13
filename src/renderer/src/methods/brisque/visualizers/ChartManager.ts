@@ -1,4 +1,4 @@
-import { FeaturesExtractor } from '../core/brisque/FeaturesExtractor'
+import { ggdPdf, aggdPdf } from '../math/distributionPdf'
 import {
   AggdFitParams,
   ChartYMode,
@@ -445,11 +445,11 @@ export class ChartManager {
     const { alpha: fittedAlpha, variance: fittedVariance } = fit
 
     const refCurve = this.sampleCurveValues(
-      center => FeaturesExtractor.ggdPdf(center, REFERENCE_GGD_ALPHA, fittedVariance),
+      center => ggdPdf(center, REFERENCE_GGD_ALPHA, fittedVariance),
       yMode
     )
     const fitCurve = this.sampleCurveValues(
-      center => FeaturesExtractor.ggdPdf(center, fittedAlpha, fittedVariance),
+      center => ggdPdf(center, fittedAlpha, fittedVariance),
       yMode
     )
     const maxDensity = this.computeMaxScale(bins, [refCurve, fitCurve])
@@ -510,7 +510,7 @@ export class ChartManager {
     const { alpha: fittedAlpha, leftVariance, rightVariance, eta } = fit
 
     const fitCurve = this.sampleCurveValues(
-      center => FeaturesExtractor.aggdPdf(center, fittedAlpha, leftVariance, rightVariance, eta),
+      center => aggdPdf(center, fittedAlpha, leftVariance, rightVariance, eta),
       yMode
     )
     const maxDensity = this.computeMaxScale(bins, [fitCurve])
