@@ -1,4 +1,4 @@
-import { BufferPool } from './BufferPool'
+import { BufferPool } from '../shared/BufferPool'
 
 /**
  * Выходные данные, получаемые после локальной нормализации (MSCN).

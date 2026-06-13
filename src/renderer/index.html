@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' media: data:;" />
-  <title>Brisque Visualizer</title>
+  <title>IQA Visualizer</title>
   <link rel="stylesheet" href="./assets/base.css" />
   <link rel="stylesheet" href="./assets/style.css" />
 </head>
@@ -15,6 +15,7 @@
   <div class="app">
     <div class="toolbar">
       <button id="open-btn">Открыть изображение</button>
+      <div id="method-select-container" class="method-select-container"></div>
       <span id="zoom-info">Масштаб: 100%</span>
       <span class="hint">Колесо мыши — масштаб | ЛКМ + Тянуть — выделение области</span>
     </div>
@@ -38,85 +39,19 @@
         <div class="sidebar-header">
           <div id="selection-info">Размер: 0 x 0 px</div>
           <div id="brisque-score-container" style="display: none;">
-            BRISQUE: <span id="brisque-score-val">0.00</span>
+            <span id="brisque-score-label">BRISQUE: </span><span id="brisque-score-val">0.00</span>
           </div>
         </div>
 
-        <div class="tabs-nav" id="qa-tabs-nav" style="display: none;">
-          <button class="tab-btn active" data-target="tab-maps">Карты</button>
-          <button class="tab-btn" data-target="tab-charts">Графики</button>
-          <button class="tab-btn" data-target="tab-features">Признаки</button>
+        <div class="sidebar-crop-preview">
+          <h3>Выделенная область</h3>
+          <div class="preview-container">
+            <canvas id="preview-canvas"></canvas>
+          </div>
         </div>
 
-        <div class="tabs-container" id="qa-tabs-container" style="display: none;">
-
-          <div class="tab-content active" id="tab-maps">
-            <div class="qa-visuals">
-
-              <h3>Выделенная область</h3>
-              <div class="preview-container">
-                <canvas id="preview-canvas"></canvas>
-              </div>
-
-              <h3 id="map-title">
-                <span id="map-title-label">Карта MSCN</span>
-                <span id="map-title-hint" class="hint-icon" data-hint="hint-mscn">?</span>
-                <button type="button" class="fullscreen-open-btn" data-fullscreen="map" title="На весь экран"
-                  aria-label="Открыть карту на весь экран">⛶</button>
-              </h3>
-
-              <div class="chart-toolbar map-toolbar">
-                <div class="chart-type-nav map-type-nav">
-                  <button class="map-type-btn" data-map="mu" title="Локальное среднее яркости">μ</button>
-                  <button class="map-type-btn" data-map="sigma" title="Локальный контраст">σ</button>
-                  <button class="map-type-btn active" data-map="mscn">MSCN</button>
-                  <button class="map-type-btn" data-map="horizontal">H</button>
-                  <button class="map-type-btn" data-map="vertical">V</button>
-                  <button class="map-type-btn" data-map="diagonal1">D1 ↘</button>
-                  <button class="map-type-btn" data-map="diagonal2">D2 ↙</button>
-                </div>
-              </div>
-
-              <div class="preview-container">
-                <canvas id="map-canvas"></canvas>
-              </div>
-
-            </div>
-          </div>
-
-          <div class="tab-content" id="tab-charts">
-            <h3>Распределения MSCN <span class="hint-icon" data-hint="hint-chart-mscn">?</span>
-              <button type="button" class="fullscreen-open-btn" data-fullscreen="chart" title="На весь экран"
-                aria-label="Открыть график на весь экран">⛶</button>
-            </h3>
-
-            <div class="chart-toolbar">
-              <div class="chart-type-nav">
-                <button class="chart-type-btn active" data-chart="mscn">MSCN</button>
-                <button class="chart-type-btn" data-chart="horizontal">H</button>
-                <button class="chart-type-btn" data-chart="vertical">V</button>
-                <button class="chart-type-btn" data-chart="diagonal1">D1 ↘</button>
-                <button class="chart-type-btn" data-chart="diagonal2">D2 ↙</button>
-              </div>
-              <div class="chart-y-mode-nav">
-                <span class="chart-y-mode-label">Ось Y:</span>
-                <button class="chart-y-mode-btn active" data-y-mode="pdf"
-                  title="PDF-плотность: count / (N × Δx). Значения могут быть &gt; 1 — это нормально для узких бинов.">PDF</button>
-                <button class="chart-y-mode-btn" data-y-mode="peak"
-                  title="Max-Norm: count / max(count). Сопоставимо с Fig. 7 Mittal et al.">Max-Norm</button>
-              </div>
-            </div>
-
-            <div class="preview-container chart-container">
-              <canvas id="chart-canvas"></canvas>
-            </div>
-          </div>
-
-          <div class="tab-content" id="tab-features">
-            <div class="placeholder-box">Здесь будет таблица из 36 математических параметров BRISQUE</div>
-          </div>
-
-        </div>
+        <div class="tabs-nav" id="qa-tabs-nav" style="display: none;"></div>
+        <div class="tabs-container" id="qa-tabs-container" style="display: none;"></div>
 
         <div id="academic-help-container"></div>
       </div>
@@ -133,44 +68,9 @@
           aria-label="Закрыть">✕</button>
       </div>
 
-      <div id="fullscreen-map-panel" class="fullscreen-content-panel" style="display: none;">
-        <div class="chart-toolbar map-toolbar fullscreen-toolbar">
-          <div class="chart-type-nav map-type-nav">
-            <button class="map-type-btn fs-map-type-btn" data-map="mu" title="Локальное среднее яркости">μ</button>
-            <button class="map-type-btn fs-map-type-btn" data-map="sigma" title="Локальный контраст">σ</button>
-            <button class="map-type-btn fs-map-type-btn active" data-map="mscn">MSCN</button>
-            <button class="map-type-btn fs-map-type-btn" data-map="horizontal">H</button>
-            <button class="map-type-btn fs-map-type-btn" data-map="vertical">V</button>
-            <button class="map-type-btn fs-map-type-btn" data-map="diagonal1">D1 ↘</button>
-            <button class="map-type-btn fs-map-type-btn" data-map="diagonal2">D2 ↙</button>
-          </div>
-        </div>
-        <div id="fullscreen-map-viewport" class="fullscreen-map-viewport">
-          <canvas id="fullscreen-map-canvas"></canvas>
-        </div>
-        <p class="fullscreen-hint">Колесо — масштаб | ЛКМ — перемещение | Двойной клик — сброс | Esc — закрыть</p>
-      </div>
-
-      <div id="fullscreen-chart-panel" class="fullscreen-content-panel" style="display: none;">
-        <div class="chart-toolbar fullscreen-toolbar">
-          <div class="chart-type-nav">
-            <button class="chart-type-btn fs-chart-type-btn active" data-chart="mscn">MSCN</button>
-            <button class="chart-type-btn fs-chart-type-btn" data-chart="horizontal">H</button>
-            <button class="chart-type-btn fs-chart-type-btn" data-chart="vertical">V</button>
-            <button class="chart-type-btn fs-chart-type-btn" data-chart="diagonal1">D1 ↘</button>
-            <button class="chart-type-btn fs-chart-type-btn" data-chart="diagonal2">D2 ↙</button>
-          </div>
-          <div class="chart-y-mode-nav">
-            <span class="chart-y-mode-label">Ось Y:</span>
-            <button class="chart-y-mode-btn fs-chart-y-mode-btn active" data-y-mode="pdf">PDF</button>
-            <button class="chart-y-mode-btn fs-chart-y-mode-btn" data-y-mode="peak">Max-Norm</button>
-          </div>
-        </div>
-        <div id="fullscreen-chart-container" class="fullscreen-chart-container">
-          <canvas id="fullscreen-chart-canvas"></canvas>
-        </div>
-        <p class="fullscreen-hint">Esc — закрыть</p>
-      </div>
+      <div id="fullscreen-toolbar-host" class="fullscreen-toolbar-host"></div>
+      <div id="fullscreen-body-host" class="fullscreen-body-host"></div>
+      <p id="fullscreen-hint" class="fullscreen-hint"></p>
     </div>
   </div>
 

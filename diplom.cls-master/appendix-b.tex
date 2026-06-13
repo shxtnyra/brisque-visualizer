@@ -1,0 +1,36 @@
+% !TeX encoding = windows-1251
+% !TEX root = diplExample.tex
+
+\chapter{Интеграция BRISQUE в Web Worker}
+\label{app:worker}
+
+\begin{lstlisting}[style=TypeScript, firstnumber=11]
+const pipeline = new BrisquePipeline()
+
+self.onmessage = (e: MessageEvent<WorkerInput>) => {
+  const { rgbaArray, width, height, requestId } = e.data
+
+  try {
+    const result = pipeline.execute(rgbaArray, width, height)
+    // ... формирование response из карт Scale~1 и features36 ...
+
+    self.postMessage(response, [
+      mu.buffer,
+      sigma.buffer,
+      mscn.buffer,
+      pairwise.horizontal.buffer,
+      pairwise.vertical.buffer,
+      pairwise.diagonal1.buffer,
+      pairwise.diagonal2.buffer,
+      features36.buffer
+    ])
+  } catch (error: unknown) {
+    const sourceError = error instanceof Error ? error : new Error(String(error))
+    self.postMessage({
+      success: false,
+      requestId,
+      error: sourceError.message
+    } as BrisqueWorkerError)
+  }
+}
+\end{lstlisting}

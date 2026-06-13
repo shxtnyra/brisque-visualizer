@@ -1,6 +1,6 @@
 /**
- * Простой пул буферов для повторного использования Float32Array и уменьшения
- * количества аллокаций при обработке изображений.
+ * Пул буферов для повторного использования Float32Array.
+ * Общий для любых пайплайнов обработки изображений (не привязан к BRISQUE).
  */
 export class BufferPool {
   private buffers = new Map<string, Float32Array>()
@@ -8,9 +8,6 @@ export class BufferPool {
   /**
    * Возвращает существующий буфер по `id` или выделяет новый требуемого размера.
    * Если текущий буфер меньше требуемого размера, он перевыделяется.
-   * @param id Идентификатор буфера.
-   * @param size Требуемый минимальный размер.
-   * @returns {Float32Array} Буфер запрошенного размера.
    */
   public getBuffer(id: string, size: number): Float32Array {
     let buf = this.buffers.get(id)
@@ -21,9 +18,6 @@ export class BufferPool {
     return buf
   }
 
-  /**
-   * Очищает пул, удаляя все ссылки на выделенные буферы.
-   */
   public clear(): void {
     this.buffers.clear()
   }

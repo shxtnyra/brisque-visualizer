@@ -1,17 +1,12 @@
 import { isPairwiseBorderPixel, PairwiseDirection } from '../types'
 
-/**
- * Коэффициенты отображения карт.
- * Это только визуальный масштаб — не часть алгоритма BRISQUE.
- */
 const MSCN_DISPLAY_GAIN = 40
 const MSCN_ZERO_GRAY = 128
 const SIGMA_DISPLAY_GAIN = 2
-/** Яркость пикселей-заглушек на границах pairwise-карт */
 const BORDER_PIXEL_GRAY = 48
 
 /**
- * Утилиты для рендеринга карт (μ, σ, MSCN, попарные произведения) в ImageData.
+ * Рендеринг карт BRISQUE (μ, σ, MSCN, попарные) в ImageData.
  */
 export class MapRenderer {
   private assertBufferSize(data: Float32Array, w: number, h: number): void {
@@ -27,15 +22,10 @@ export class MapRenderer {
     img.data[idx + 3] = 255
   }
 
-  /** MSCN и попарные произведения: ноль → серый 128, контраст через gain */
   private normalizedToGray(value: number): number {
     return value * MSCN_DISPLAY_GAIN + MSCN_ZERO_GRAY
   }
 
-  /**
-   * Карта локального среднего μ (освещённость).
-   * Вход — grayscale 0…255, отображается напрямую.
-   */
   renderMu(mu: Float32Array, w: number, h: number): ImageData {
     this.assertBufferSize(mu, w, h)
     const img = new ImageData(w, h)
@@ -45,10 +35,6 @@ export class MapRenderer {
     return img
   }
 
-  /**
-   * Карта локального контраста σ.
-   * Усиление SIGMA_DISPLAY_GAIN делает слабые границы видимыми на экране.
-   */
   renderSigma(sigma: Float32Array, w: number, h: number): ImageData {
     this.assertBufferSize(sigma, w, h)
     const img = new ImageData(w, h)
@@ -58,7 +44,6 @@ export class MapRenderer {
     return img
   }
 
-  /** Карта коэффициентов MSCN после пространственной нормализации */
   renderMscn(mscn: Float32Array, w: number, h: number): ImageData {
     this.assertBufferSize(mscn, w, h)
     const img = new ImageData(w, h)
@@ -68,10 +53,6 @@ export class MapRenderer {
     return img
   }
 
-  /**
-   * Карта попарных произведений MSCN для заданного направления.
-   * Пиксели-заглушки на границах (где нет соседа) затемняются для отличия от данных.
-   */
   renderPairwise(
     pairwise: Float32Array,
     w: number,

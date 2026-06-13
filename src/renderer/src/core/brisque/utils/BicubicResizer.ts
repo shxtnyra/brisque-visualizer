@@ -1,4 +1,4 @@
-import { BufferPool } from '../BufferPool'
+import { BufferPool } from '../../shared/BufferPool'
 
 /**
  * Реализация бикубической интерполяции/ресайза с предвычислением весов

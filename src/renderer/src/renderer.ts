@@ -1,7 +1,8 @@
-import { AppController, UiElements } from './AppController'
+import { AppController, ShellElements } from './AppController'
+import { FullscreenShellElements } from './ui/FullscreenView'
 
 /**
- * Точка входа renderer-процесса: собирает DOM-элементы и инициализирует AppController.
+ * Точка входа renderer-процесса: собирает DOM оболочки и инициализирует AppController.
  */
 declare global {
   interface Window {
@@ -17,16 +18,20 @@ function requireElement<T extends HTMLElement>(id: string): T {
   return el as T
 }
 
-function requireElements<T extends HTMLElement>(selector: string): NodeListOf<T> {
-  const nodes = document.querySelectorAll(selector)
-  if (nodes.length === 0) {
-    throw new Error(`DOM: не найдены элементы "${selector}"`)
-  }
-  return nodes as NodeListOf<T>
+const fullscreen: FullscreenShellElements = {
+  modal: requireElement('fullscreen-modal'),
+  title: requireElement('fullscreen-title'),
+  zoomInfo: requireElement('fullscreen-zoom-info'),
+  closeBtn: requireElement('fullscreen-close-btn'),
+  resetBtn: requireElement('fullscreen-reset-btn'),
+  toolbarHost: requireElement('fullscreen-toolbar-host'),
+  bodyHost: requireElement('fullscreen-body-host'),
+  hint: requireElement('fullscreen-hint')
 }
 
-const els: UiElements = {
+const els: ShellElements = {
   openBtn: requireElement('open-btn'),
+  methodSelectContainer: requireElement('method-select-container'),
   zoomInfo: requireElement('zoom-info'),
   workspace: requireElement('workspace'),
   imageWrapper: requireElement('image-wrapper'),
@@ -34,37 +39,16 @@ const els: UiElements = {
   selectionBox: requireElement('selection-box'),
   selectionInfo: requireElement('selection-info'),
   scoreContainer: requireElement('brisque-score-container'),
+  scoreLabel: requireElement('brisque-score-label'),
   scoreVal: requireElement('brisque-score-val'),
   previewCanvas: requireElement('preview-canvas'),
-  mapCanvas: requireElement('map-canvas'),
-  mapTitle: requireElement('map-title'),
-  mapTitleLabel: requireElement('map-title-label'),
-  mapTitleHint: requireElement('map-title-hint'),
-  mapTypeBtns: requireElements('.map-type-btn'),
-  chartCanvas: requireElement('chart-canvas'),
-  chartTypeBtns: requireElements('.chart-type-btn'),
-  chartYModeBtns: requireElements('.chart-y-mode-btn'),
   sidebar: requireElement('sidebar'),
   resizer: requireElement('sidebar-resizer'),
   qaTabsNav: requireElement('qa-tabs-nav'),
   qaTabsContainer: requireElement('qa-tabs-container'),
-  tabBtns: requireElements('.tab-btn'),
-  tabContents: requireElements('.tab-content'),
-  fullscreenOpenBtns: requireElements('.fullscreen-open-btn'),
-  fullscreenModal: requireElement('fullscreen-modal'),
-  fullscreenTitle: requireElement('fullscreen-title'),
-  fullscreenZoomInfo: requireElement('fullscreen-zoom-info'),
-  fullscreenCloseBtn: requireElement('fullscreen-close-btn'),
-  fullscreenResetBtn: requireElement('fullscreen-reset-btn'),
-  fullscreenMapViewport: requireElement('fullscreen-map-viewport'),
-  fullscreenMapCanvas: requireElement('fullscreen-map-canvas'),
-  fullscreenChartContainer: requireElement('fullscreen-chart-container'),
-  fullscreenChartCanvas: requireElement('fullscreen-chart-canvas'),
-  fullscreenMapPanel: requireElement('fullscreen-map-panel'),
-  fullscreenChartPanel: requireElement('fullscreen-chart-panel'),
-  fsMapTypeBtns: requireElements('.fs-map-type-btn'),
-  fsChartTypeBtns: requireElements('.fs-chart-type-btn'),
-  fsChartYModeBtns: requireElements('.fs-chart-y-mode-btn')
+  fullscreen
 }
 
 new AppController(els)
+
+console.log('renderer.ts loaded')
